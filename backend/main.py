@@ -39,24 +39,7 @@ app.add_middleware(
 app.include_router(voice.router)
 app.include_router(audio_ws.router)
 
-# ── Frontend static files ─────────────────────────────────────────────────────
-FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 
-
-@app.get("/", include_in_schema=False)
-async def serve_index():
-    return FileResponse(FRONTEND_DIR / "index.html")
-
-
-@app.get("/processor.js", include_in_schema=False)
-async def serve_processor():
-    """AudioWorklet module must be served from the same origin."""
-    return FileResponse(FRONTEND_DIR / "processor.js", media_type="application/javascript")
-
-
-# Mount everything else in frontend/ as static (favicon, etc.)
-if FRONTEND_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend")
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

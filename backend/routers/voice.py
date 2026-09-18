@@ -56,9 +56,14 @@ async def clone_voice_endpoint(
     profile = db.query(VoiceProfile).filter(VoiceProfile.elevenlabs_voice_id == result["voice_id"]).first()
     if profile:
         profile.name = voice_name
+        # Mark all others as inactive
+        db.query(VoiceProfile).filter(VoiceProfile.id != profile.id).update({"is_active": False})
+        profile.is_active = True
         db.commit()
         db.refresh(profile)
     else:
+        # Mark all existing as inactive
+        db.query(VoiceProfile).update({"is_active": False})
         # Save new to DB
         profile = VoiceProfile(
             name=voice_name,
@@ -92,6 +97,27 @@ def list_voices(db: Session = Depends(get_db)):
         }
         for p in profiles
     ]
+
+from fastapi.responses import StreamingResponse
+from services.elevenlabs_service import tts_stream
+
+@router.get("/voices/{id}/preview")
+async def preview_voice(id: int, db: Session = Depends(get_db)):
+    """Generates a short audio preview of the voice."""
+    profile = db.query(VoiceProfile).filter(VoiceProfile.id == id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Voice not found")
+        
+    text = f"Hi! I am {profile.name}, and I am ready to help you."
+    return StreamingResponse(tts_stream(text, profile.elevenlabs_voice_id), media_type="audio/mpeg")
+
+@router.get("/active-voice")
+def get_active_voice(db: Session = Depends(get_db)):
+    """Returns the currently active voice profile."""
+    profile = db.query(VoiceProfile).filter(VoiceProfile.is_active == True).order_by(VoiceProfile.created_at.desc()).first()
+    if not profile:
+        return {"voice_id": None, "name": None}
+    return {"voice_id": profile.elevenlabs_voice_id, "name": profile.name}
 
 
 @router.delete("/voices/{profile_id}")

@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  voice_frontend:
+    build: 
+      context: ./frontend-react
+      args:
+        - VITE_API_URL=https://voice-backend.marketbytes.in
+        - VITE_WS_URL=wss://voice-backend.marketbytes.in
+    container_name: voice_frontend
+    restart: always
+    ports:
+      - "3010:80" # Maps Host Port 3010 to Nginx Container Port 80
+    
+  voice_backend:
+    build: ./backend
+    container_name: voice_backend
+    restart: always
+    ports:
+      - "8010:8000" # Maps Host Port 8010 to Uvicorn Container Port 8000

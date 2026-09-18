@@ -76,3 +76,18 @@ class CallLog(Base):
 
     def __repr__(self):
         return f"<CallLog {self.session_id}>"
+
+
+class Appointment(Base):
+    __tablename__ = "appointments"
+
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    name       = Column(String(100), nullable=False)
+    phone      = Column(String(50), nullable=False)
+    date       = Column(String(50), nullable=False)
+    time       = Column(String(50), nullable=False)
+    status     = Column(String(50), default="Confirmed")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Appointment {self.name} on {self.date} at {self.time}>"

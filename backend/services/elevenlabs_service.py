@@ -21,6 +21,7 @@ async def clone_voice(audio_bytes: bytes, filename: str, voice_name: str) -> dic
     Returns: { "voice_id": "...", "name": "..." }
     """
     async with httpx.AsyncClient(timeout=60) as client:
+        print(f"[DEBUG] clone_voice using API key: {_HEADERS['xi-api-key'][:8]}...")
         resp = await client.post(
             f"{_BASE}/voices/add",
             headers=_HEADERS,
@@ -56,7 +57,7 @@ async def tts_stream(text: str, voice_id: str):
     """
     payload = {
         "text": text,
-        "model_id": "eleven_turbo_v2",
+        "model_id": "eleven_multilingual_v2",
         "voice_settings": {
             "stability": 0.50,
             "similarity_boost": 0.80,

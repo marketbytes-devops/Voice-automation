@@ -64,7 +64,9 @@ _DG_URL = (
     "&sample_rate=16000"
     "&channels=1"
     "&interim_results=true"
-    "&endpointing=300"
+    "&endpointing=1200"
+    "&utterance_end_ms=3000"
+    "&vad_events=true"
     "&language=en-US"
     "&model=nova-2"
 )
@@ -85,13 +87,17 @@ async def _safe_send(ws: WebSocket, payload: dict):
 async def _stream_tts(
     ws: WebSocket,
     text: str,
-    voice_id: str,
+    voice_id: str | None,
     barge_in: asyncio.Event,
 ):
     """
     Streams ElevenLabs TTS back to the browser as base64-encoded MP3 chunks.
     Stops early if barge_in is set.
     """
+    if not voice_id:
+        await _safe_send(ws, {"type": "error", "message": "No voice configured."})
+        return
+
     try:
         await _safe_send(ws, {"type": "tts_start"})
         async for chunk in tts_stream(text, voice_id):
@@ -115,8 +121,28 @@ async def _stream_tts(
 # ──────────────────────────────────────────────────────────────────────────────
 
 @router.websocket("/ws/audio")
-async def audio_websocket(ws: WebSocket):
+async def audio_websocket(ws: WebSocket, lang: str = "en-US"):
     await ws.accept()
+    
+    # Dynamically build Deepgram URL based on selected language
+    # Deepgram streaming currently does not support Tamil or Bahasa Malaysia.
+    # To prevent WebSocket 400 crashes, we force Deepgram to transcribe phonetically in English.
+    # We will pass the selected language to the AI so it knows what language to reply in.
+    
+    dg_url = (
+        "wss://api.deepgram.com/v1/listen"
+        "?encoding=linear16"
+        "&sample_rate=16000"
+        "&channels=1"
+        "&interim_results=true"
+        "&endpointing=4000"
+        "&utterance_end_ms=5000"
+        "&vad_events=true"
+        "&language=en-US"
+        "&model=nova-2"
+        "&keywords=Akshay:3"
+        "&keywords=SmileCare:3"
+    )
 
     # ── Session state ──────────────────────────────────────────────────────────
     session_id          = str(uuid.uuid4())
@@ -135,6 +161,7 @@ async def audio_websocket(ws: WebSocket):
     db = SessionLocal()
     try:
         db_context = build_db_context(db)
+        db_context["target_language"] = lang
     finally:
         db.close()
 
@@ -146,7 +173,7 @@ async def audio_websocket(ws: WebSocket):
     async def deepgram_bridge():
         headers = {"Authorization": f"Token {settings.DEEPGRAM_API_KEY}"}
         try:
-            async with websockets.connect(_DG_URL, extra_headers=headers) as dg:
+            async with websockets.connect(dg_url, extra_headers=headers) as dg:
 
                 async def _send():
                     while not stop_evt.is_set():
@@ -239,7 +266,13 @@ async def audio_websocket(ws: WebSocket):
             await _safe_send(ws, {"type": "state", "state": "thinking"})
 
             try:
-                reply = await get_ai_response(text, conversation_history, db_context)
+                res_data = await get_ai_response(text, conversation_history, db_context)
+                if isinstance(res_data, dict):
+                    reply = res_data.get("reply", "")
+                    wa_msg = res_data.get("whatsapp_message")
+                else:
+                    reply = res_data
+                    wa_msg = None
             except Exception as e:
                 print(f"[openai] Error: {e}")
                 await _safe_send(ws, {"type": "error", "message": "Sorry, I had trouble processing that."})
@@ -254,12 +287,10 @@ async def audio_websocket(ws: WebSocket):
 
             # Send reply text to browser (for transcript display)
             await _safe_send(ws, {"type": "reply", "text": reply, "role": "assistant"})
-
-            if not voice_id:
-                # No voice cloned yet – text-only mode
-                state = "listening"
-                await _safe_send(ws, {"type": "state", "state": "listening"})
-                continue
+            
+            # Send mock WhatsApp message if generated
+            if wa_msg:
+                await _safe_send(ws, {"type": "whatsapp", "message": wa_msg})
 
             # Transition: thinking → speaking
             state = "speaking"
@@ -293,7 +324,7 @@ async def audio_websocket(ws: WebSocket):
         while True:
             try:
                 data = await ws.receive()
-            except WebSocketDisconnect:
+            except (WebSocketDisconnect, RuntimeError):
                 break
 
             # Binary = raw PCM audio from mic
