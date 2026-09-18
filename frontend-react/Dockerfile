@@ -19,6 +19,8 @@ RUN npm run build
 FROM nginx:alpine
 # Copy built assets to Nginx default html directory
 COPY --from=builder /app/dist /usr/share/nginx/html
+# Copy custom Nginx configuration to support React Router
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80
 EXPOSE 80
