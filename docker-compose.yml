@@ -10,12 +10,21 @@ services:
     container_name: voice_frontend
     restart: always
     ports:
-      - "3010:80" # Maps Host Port 3010 to Nginx Container Port 80
+      - "3010:80"
     
   voice_backend:
     build: ./backend
     container_name: voice_backend
     restart: always
-    network_mode: "host"
     environment:
-      - DATABASE_URL=mysql+pymysql://root:Akshay%402002@127.0.0.1:3306/dental_ai
+      - DATABASE_URL=mysql+pymysql://root:Akshay%402002@shared-mysql:3306/dental_ai
+    ports:
+      - "8010:8010"
+    networks:
+      - default
+      - shared-db-network
+
+networks:
+  default:
+  shared-db-network:
+    external: true
