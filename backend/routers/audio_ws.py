@@ -38,9 +38,7 @@ LANGUAGE_GREETINGS = {
 def _deepgram_url(language: str) -> str:
     params = {"encoding": "linear16", "sample_rate": "16000", "channels": "1",
               "interim_results": "true", "endpointing": "1200", "utterance_end_ms": "3000",
-              "vad_events": "true", "language": language}
-    if language.startswith("en"):
-        params["model"] = "nova-2"
+              "vad_events": "true", "language": language, "model": "nova-2"}
     return "wss://api.deepgram.com/v1/listen?" + urlencode(params)
 
 
@@ -151,10 +149,13 @@ async def audio_websocket(ws: WebSocket):
     await _send(ws, {"type": "state", "state": "language_select"})
 
     async def deepgram_bridge():
+        dg_retries = 0
+        max_retries = 3
         while not stop_evt.is_set():
             dg_url = _deepgram_url(active_language["dg"])
             try:
                 async with websockets.connect(dg_url, extra_headers={"Authorization": f"Token {settings.DEEPGRAM_API_KEY}"}) as dg:
+                    dg_retries = 0  # reset on successful connection
                     async def send_audio():
                         while not stop_evt.is_set() and not reconnect_evt.is_set():
                             try:
@@ -191,11 +192,15 @@ async def audio_websocket(ws: WebSocket):
                         task.cancel()
                     await asyncio.gather(*pending, return_exceptions=True)
             except Exception as exc:
-                print(f"[deepgram] Connection unavailable ({type(exc).__name__})")
-                await _send(ws, {"type": "error", "message": "Speech recognition is unavailable. Please retry in English or end the call."})
-                await asyncio.sleep(2)
+                dg_retries += 1
+                print(f"[deepgram] Connection attempt {dg_retries}/{max_retries} failed for lang={active_language['dg']}: {type(exc).__name__}: {exc}")
+                if dg_retries >= max_retries:
+                    await _send(ws, {"type": "error", "message": "Speech recognition is unavailable. Please retry in English or end the call."})
+                    dg_retries = 0
+                await asyncio.sleep(min(2 ** dg_retries, 5))
             if reconnect_evt.is_set():
                 reconnect_evt.clear()
+                dg_retries = 0
 
     async def handle_transcripts():
         while not stop_evt.is_set():
