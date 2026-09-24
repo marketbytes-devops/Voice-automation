@@ -153,7 +153,7 @@ async def audio_websocket(ws: WebSocket):
         release_session()
         return
     selectable = [LANGUAGE_NAMES.get(code, code) for code in choices]
-    prompt = "Welcome to SmileCare. ... Please say your preferred language in English: ... " + ". ... ".join(selectable) + "."
+    prompt = "Welcome to SmileCare. ... Please say your preferred language: ... " + ". ... ".join(selectable) + "."
     await _send(ws, {"type": "state", "state": "speaking"})
     try:
         await asyncio.wait_for(_speak(ws, prompt, voice["id"]), timeout=max(0.1, deadline - time.monotonic()))
@@ -272,7 +272,7 @@ async def audio_websocket(ws: WebSocket):
                         break
                 if not code or code not in choices:
                     names = ". ... ".join(selectable)
-                    retry_text = f"Sorry, I didn't catch that. ... Please say one of the enabled languages in English: ... {names}."
+                    retry_text = f"Sorry, I didn't catch that. ... Please say your preferred language: ... {names}."
                     await _send(ws, {"type": "state", "state": "speaking"})
                     await _send(ws, {"type": "reply", "text": retry_text, "role": "assistant"})
                     await _speak(ws, retry_text, voice["id"])
