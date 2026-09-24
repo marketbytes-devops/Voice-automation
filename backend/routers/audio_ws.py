@@ -39,9 +39,11 @@ def _deepgram_url(language: str, keywords: list[str] | None = None) -> str:
     params = {"encoding": "linear16", "sample_rate": "16000", "channels": "1",
               "interim_results": "true", "endpointing": "1200", "utterance_end_ms": "3000",
               "vad_events": "true", "language": language}
-    # Only set nova-2 for English; let Deepgram auto-select for other languages
+    # Use nova-2 for English and nova-3 for other languages
     if language.startswith("en"):
         params["model"] = "nova-2"
+    else:
+        params["model"] = "nova-3"
     qs = urlencode(params)
     if keywords:
         qs += "&" + "&".join(f"keywords={k}" for k in keywords)
