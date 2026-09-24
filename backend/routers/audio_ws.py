@@ -33,6 +33,12 @@ LANGUAGE_GREETINGS = {
     "zh": "谢谢您。今天我能为您做些什么？",
     "ms": "Terima kasih. Bagaimana saya boleh membantu anda hari ini?",
 }
+LANGUAGE_ERROR_FALLBACKS = {
+    "en": "I'm sorry, I couldn't process that just now. Please repeat your question or contact the clinic.",
+    "ta": "மன்னிக்கவும், இப்போது உங்கள் கேள்வியைப் புரிந்துகொள்ள முடியவில்லை. தயவுசெய்து மீண்டும் கூறுங்கள் அல்லது கிளினிக்கைத் தொடர்புகொள்ளுங்கள்.",
+    "zh": "抱歉，我现在无法处理您的问题。请重复您的问题或联系诊所。",
+    "ms": "Maaf, saya tidak dapat memproses soalan anda sekarang. Sila ulangi atau hubungi klinik.",
+}
 
 
 def _deepgram_url(language: str, keywords: list[str] | None = None) -> str:
@@ -308,8 +314,8 @@ async def audio_websocket(ws: WebSocket):
                 result = await get_ai_response(text, history, turn_context)
                 reply = result.get("reply", "") if isinstance(result, dict) else str(result)
             except Exception as exc:
-                print(f"[openai] Request failed ({type(exc).__name__})")
-                reply = "I'm sorry, I couldn't process that just now. Please repeat your question or contact the clinic."
+                print(f"[openai] Request failed ({type(exc).__name__}): {exc}")
+                reply = LANGUAGE_ERROR_FALLBACKS.get(active_language["code"], LANGUAGE_ERROR_FALLBACKS["en"])
                 await _send(ws, {"type": "error", "message": "The assistant service is temporarily unavailable."})
             history.extend([{"role": "user", "content": text[:2000]}, {"role": "assistant", "content": reply[:2000]}])
             del history[:-10]
