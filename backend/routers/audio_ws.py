@@ -38,7 +38,9 @@ LANGUAGE_GREETINGS = {
 def _deepgram_url(language: str) -> str:
     params = {"encoding": "linear16", "sample_rate": "16000", "channels": "1",
               "interim_results": "true", "endpointing": "1200", "utterance_end_ms": "3000",
-              "vad_events": "true", "language": language, "model": "nova-2"}
+              "vad_events": "true", "language": language}
+    if language.startswith("en"):
+        params["model"] = "nova-2"
     return "wss://api.deepgram.com/v1/listen?" + urlencode(params)
 
 
