@@ -32,6 +32,7 @@ export function useVoiceAgent() {
 
   const stopAudio = useCallback(() => {
     if (currentAudio.current) {
+      currentAudio.current.onerror = null;
       currentAudio.current.pause();
       currentAudio.current.src = '';
       currentAudio.current = null;
