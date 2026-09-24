@@ -295,9 +295,8 @@ async def audio_websocket(ws: WebSocket):
                 try:
                     audio_q.put_nowait(data["bytes"])
                 except asyncio.QueueFull:
-                    await _send(ws, {"type": "error", "message": "Audio is arriving faster than it can be processed. Please retry the call."})
-                    await ws.close(code=1013, reason="Audio queue full")
-                    break
+                    # Drop audio frames during brief reconnections instead of crashing
+                    pass
             elif data.get("text"):
                 try:
                     msg = json.loads(data["text"])
