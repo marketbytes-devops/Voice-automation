@@ -16,9 +16,8 @@ services:
     build: ./backend
     container_name: voice_backend
     restart: always
-    environment:
-      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in the deployment environment}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:3010,http://127.0.0.1:3010}
+    env_file:
+      - .env
     ports:
       - "127.0.0.1:8010:8010"
     networks:
