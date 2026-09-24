@@ -51,7 +51,7 @@ async def tts_stream(text: str, voice_id: str):
     async with httpx.AsyncClient(timeout=30) as client:
         async with client.stream(
             "POST",
-            f"{_BASE}/text-to-speech/{voice_id}/stream",
+            f"{_BASE}/text-to-speech/{voice_id}/stream?output_format=mp3_44100_128",
             headers={**_HEADERS, "Content-Type": "application/json"},
             json=payload,
         ) as resp:
