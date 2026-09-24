@@ -35,11 +35,14 @@ LANGUAGE_GREETINGS = {
 }
 
 
-def _deepgram_url(language: str) -> str:
+def _deepgram_url(language: str, keywords: list[str] | None = None) -> str:
     params = {"encoding": "linear16", "sample_rate": "16000", "channels": "1",
               "interim_results": "true", "endpointing": "1200", "utterance_end_ms": "3000",
               "vad_events": "true", "language": language, "model": "nova-2"}
-    return "wss://api.deepgram.com/v1/listen?" + urlencode(params)
+    qs = urlencode(params)
+    if keywords:
+        qs += "&" + "&".join(f"keywords={k}" for k in keywords)
+    return "wss://api.deepgram.com/v1/listen?" + qs
 
 
 async def _send(ws, payload):
@@ -161,7 +164,9 @@ async def audio_websocket(ws: WebSocket):
                 continue
             if stop_evt.is_set():
                 break
-            dg_url = _deepgram_url(active_language["dg"])
+            # Boost recognition of language names during selection phase
+            kw_boost = ["Tamil:2", "English:2", "Mandarin:2", "Malay:2", "Chinese:2"] if phase["value"] == "language_select" else None
+            dg_url = _deepgram_url(active_language["dg"], keywords=kw_boost)
             try:
                 async with websockets.connect(
                     dg_url,
@@ -237,8 +242,23 @@ async def audio_websocket(ws: WebSocket):
             transcript_log.append({"role": "user", "text": text[:2000], "ts": datetime.utcnow().isoformat()})
             if phase["value"] == "language_select":
                 normalized = " ".join(text.lower().strip().split())
-                aliases = {"english": "en", "tamil": "ta", "mandarin": "zh", "chinese": "zh", "malay": "ms"}
-                code = aliases.get(normalized)
+                print(f"[lang-select] Heard: '{normalized}' (raw: '{text}')")
+                # Fuzzy language matching: exact match first, then substring/phonetic fallback
+                _LANG_ALIASES = {
+                    "en": ["english", "eng", "ingles"],
+                    "ta": ["tamil", "tami", "tamul", "tumil", "tumul", "thamil"],
+                    "zh": ["mandarin", "chinese", "mandrin", "mandarim"],
+                    "ms": ["malay", "melayu", "malai", "maley"],
+                }
+                code = None
+                # Pass 1: check if the transcript contains any known language keyword
+                for lang_code, kws in _LANG_ALIASES.items():
+                    for kw in kws:
+                        if kw in normalized:
+                            code = lang_code
+                            break
+                    if code:
+                        break
                 if not code or code not in choices:
                     names = ". ... ".join(selectable)
                     retry_text = f"Sorry, I didn't catch that. ... Please say one of the enabled languages in English: ... {names}."
