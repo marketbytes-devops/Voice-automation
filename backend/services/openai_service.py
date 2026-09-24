@@ -279,15 +279,6 @@ async def get_ai_response(
             temperature=0.6,
         )
         final_reply = second_response.choices[0].message.content.strip()
-        if appointment_tool_status == "pending_staff_confirmation":
-            if any(call.function.name == "book_appointment" for call in msg.tool_calls):
-                final_reply = "I've sent your appointment request to the clinic. It is pending staff confirmation; the team will verify availability and follow up."
-            else:
-                final_reply = "I can't verify live appointment availability. The clinic team will need to confirm whether that time is available."
-        elif appointment_tool_status == "invalid_request":
-            final_reply = appointment_tool_message or "I couldn't submit that request. Please check the appointment details and try again."
-        elif appointment_tool_status == "error":
-            final_reply = "I couldn't save the appointment request. Please contact the clinic directly for help."
         return {"reply": final_reply, "whatsapp_message": None}
 
     return {
