@@ -160,6 +160,7 @@ export function useVoiceAgent() {
           case 'tts_cancelled': pendingChunks.current = []; stopAudio(); break;
           case 'state': setAppState(data.state); break;
           case 'error': setError(data.message); break;
+          case 'error_clear': setError(''); break;
           default: break;
         }
       };

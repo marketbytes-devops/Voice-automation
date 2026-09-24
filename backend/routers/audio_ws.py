@@ -97,6 +97,8 @@ async def audio_websocket(ws: WebSocket):
     session_id = str(uuid.uuid4())
     stop_evt = asyncio.Event()
     reconnect_evt = asyncio.Event()
+    ready_evt = asyncio.Event()
+    ready_evt.set()  # initially ready
     audio_q = asyncio.Queue(maxsize=max(1, settings.MAX_AUDIO_QUEUE_FRAMES))
     transcript_q = asyncio.Queue(maxsize=max(1, settings.MAX_TRANSCRIPT_QUEUE_ITEMS))
     transcript_log = []
@@ -152,10 +154,25 @@ async def audio_websocket(ws: WebSocket):
         dg_retries = 0
         max_retries = 3
         while not stop_evt.is_set():
+            # Wait until the greeting has finished before connecting
+            try:
+                await asyncio.wait_for(ready_evt.wait(), timeout=15)
+            except asyncio.TimeoutError:
+                continue
+            if stop_evt.is_set():
+                break
             dg_url = _deepgram_url(active_language["dg"])
             try:
-                async with websockets.connect(dg_url, extra_headers={"Authorization": f"Token {settings.DEEPGRAM_API_KEY}"}) as dg:
-                    dg_retries = 0  # reset on successful connection
+                async with websockets.connect(
+                    dg_url,
+                    extra_headers={"Authorization": f"Token {settings.DEEPGRAM_API_KEY}"},
+                    open_timeout=10,
+                    close_timeout=5,
+                ) as dg:
+                    dg_retries = 0
+                    # Clear any previous error on successful connection
+                    await _send(ws, {"type": "error_clear"})
+                    print(f"[deepgram] Connected successfully for lang={active_language['dg']}")
                     async def send_audio():
                         while not stop_evt.is_set() and not reconnect_evt.is_set():
                             try:
@@ -242,6 +259,8 @@ async def audio_websocket(ws: WebSocket):
                         transcript_q.get_nowait()
                     except asyncio.QueueEmpty:
                         break
+                # Signal bridge to disconnect; block reconnection until greeting finishes
+                ready_evt.clear()
                 reconnect_evt.set()
                 context["target_language"] = LANGUAGE_NAMES.get(code, code)
                 await _send(ws, {"type": "language", "code": code, "name": LANGUAGE_NAMES.get(code, code)})
@@ -250,6 +269,8 @@ async def audio_websocket(ws: WebSocket):
                 await _send(ws, {"type": "reply", "text": greeting, "role": "assistant"})
                 await _speak(ws, greeting, voice["id"])
                 await _send(ws, {"type": "state", "state": "listening"})
+                # Now allow the bridge to connect with the new language
+                ready_evt.set()
                 continue
             await _send(ws, {"type": "state", "state": "thinking"})
             session_db = SessionLocal()
@@ -315,6 +336,7 @@ async def audio_websocket(ws: WebSocket):
         pass
     finally:
         stop_evt.set()
+        ready_evt.set()  # unblock bridge if it's waiting
         release_session()
         for task in tasks:
             task.cancel()
@@ -329,3 +351,4 @@ async def audio_websocket(ws: WebSocket):
             print(f"[calllog] Save failed ({type(exc).__name__})")
         finally:
             call_db.close()
+
