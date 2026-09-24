@@ -4,8 +4,9 @@ Tables: doctors, services, faqs, voice_profiles, call_logs
 """
 from datetime import datetime
 from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, Boolean, JSON
+    Column, Integer, String, Text, DateTime, Boolean, JSON, LargeBinary
 )
+from sqlalchemy.dialects.mysql import MEDIUMBLOB
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -86,8 +87,34 @@ class Appointment(Base):
     phone      = Column(String(50), nullable=False)
     date       = Column(String(50), nullable=False)
     time       = Column(String(50), nullable=False)
-    status     = Column(String(50), default="Confirmed")
+    status     = Column(String(50), default="Pending staff confirmation", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     def __repr__(self):
         return f"<Appointment {self.name} on {self.date} at {self.time}>"
+
+
+class LanguageSetting(Base):
+    """Configured language options; provider support is evaluated separately."""
+    __tablename__ = "language_settings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    code = Column(String(12), nullable=False, unique=True)
+    name = Column(String(40), nullable=False)
+    deepgram_language = Column(String(40), nullable=False)
+    enabled = Column(Boolean, nullable=False, default=False)
+
+
+class KnowledgeDocument(Base):
+    """Small prototype knowledge store. Original bytes are retained in DB."""
+    __tablename__ = "knowledge_documents"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    filename = Column(String(255), nullable=False)
+    content_type = Column(String(100), nullable=False)
+    size_bytes = Column(Integer, nullable=False)
+    extracted_text = Column(Text, nullable=False)
+    original_bytes = Column(LargeBinary().with_variant(MEDIUMBLOB(), "mysql"), nullable=False)
+    status = Column(String(20), nullable=False, default="ready")
+    error = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

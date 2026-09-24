@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SmileCare AI Admin</title>
-  <meta name="description" content="AI voice receptionist for SmileCare Dental Clinic – upload a voice sample and have a live spoken conversation." />
+  <meta name="description"
+    content="AI voice receptionist for SmileCare Dental Clinic – upload a voice sample and have a live spoken conversation." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
@@ -13,31 +15,38 @@
        DESIGN TOKENS
     ═══════════════════════════════════════════════════════════════ */
     :root {
-      --bg:          #0a0f1e;
-      --bg-panel:    rgba(255,255,255,0.04);
-      --bg-card:     rgba(255,255,255,0.07);
-      --border:      rgba(255,255,255,0.10);
-      --blue:        #3b82f6;
-      --blue-glow:   rgba(59,130,246,0.35);
-      --teal:        #06b6d4;
-      --teal-glow:   rgba(6,182,212,0.30);
-      --green:       #22c55e;
-      --green-glow:  rgba(34,197,94,0.35);
-      --amber:       #f59e0b;
-      --amber-glow:  rgba(245,158,11,0.35);
-      --red:         #ef4444;
-      --text:        #e2e8f0;
-      --text-muted:  #94a3b8;
-      --radius:      16px;
-      --radius-sm:   10px;
+      --bg: #0a0f1e;
+      --bg-panel: rgba(255, 255, 255, 0.04);
+      --bg-card: rgba(255, 255, 255, 0.07);
+      --border: rgba(255, 255, 255, 0.10);
+      --blue: #3b82f6;
+      --blue-glow: rgba(59, 130, 246, 0.35);
+      --teal: #06b6d4;
+      --teal-glow: rgba(6, 182, 212, 0.30);
+      --green: #22c55e;
+      --green-glow: rgba(34, 197, 94, 0.35);
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.35);
+      --red: #ef4444;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --radius: 16px;
+      --radius-sm: 10px;
     }
 
     /* ═══════════════════════════════════════════════════════════════
        RESET & BASE
     ═══════════════════════════════════════════════════════════════ */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    html, body {
+    html,
+    body {
       height: 100%;
       font-family: 'Inter', system-ui, sans-serif;
       background: var(--bg);
@@ -48,10 +57,12 @@
     /* Subtle animated gradient background */
     body::before {
       content: '';
-      position: fixed; inset: 0; z-index: -1;
+      position: fixed;
+      inset: 0;
+      z-index: -1;
       background:
-        radial-gradient(ellipse 60% 50% at 20% 20%, rgba(59,130,246,0.08) 0%, transparent 70%),
-        radial-gradient(ellipse 50% 40% at 80% 80%, rgba(6,182,212,0.07) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 50% at 20% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 40% at 80% 80%, rgba(6, 182, 212, 0.07) 0%, transparent 70%),
         var(--bg);
     }
 
@@ -77,10 +88,13 @@
     }
 
     .logo {
-      width: 42px; height: 42px;
+      width: 42px;
+      height: 42px;
       background: linear-gradient(135deg, var(--blue), var(--teal));
       border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 22px;
       box-shadow: 0 0 20px var(--blue-glow);
       flex-shrink: 0;
@@ -114,11 +128,34 @@
       transition: all 0.3s ease;
     }
 
-    .status-badge.live { color: var(--green); border-color: var(--green); background: rgba(34,197,94,0.08); }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-    .status-badge.live .status-dot { animation: blink 1.4s infinite; }
+    .status-badge.live {
+      color: var(--green);
+      border-color: var(--green);
+      background: rgba(34, 197, 94, 0.08);
+    }
 
-    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .status-badge.live .status-dot {
+      animation: blink 1.4s infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
 
     /* ── Main content ── */
     main {
@@ -129,7 +166,9 @@
     }
 
     @media (max-width: 700px) {
-      main { grid-template-columns: 1fr; }
+      main {
+        grid-template-columns: 1fr;
+      }
     }
 
     /* ── Panel ── */
@@ -153,7 +192,11 @@
     /* ═══════════════════════════════════════════════════════════════
        LEFT COLUMN — Upload + Orb + Controls
     ═══════════════════════════════════════════════════════════════ */
-    .left-col { display: flex; flex-direction: column; gap: 20px; }
+    .left-col {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
 
     /* ── Upload zone ── */
     .upload-zone {
@@ -166,18 +209,34 @@
       position: relative;
     }
 
-    .upload-zone:hover, .upload-zone.drag-over {
+    .upload-zone:hover,
+    .upload-zone.drag-over {
       border-color: var(--blue);
-      background: rgba(59,130,246,0.06);
+      background: rgba(59, 130, 246, 0.06);
     }
 
     .upload-zone input[type="file"] {
-      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
     }
 
-    .upload-icon { font-size: 2.2rem; margin-bottom: 10px; }
-    .upload-zone h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; }
-    .upload-zone p  { font-size: 0.78rem; color: var(--text-muted); }
+    .upload-icon {
+      font-size: 2.2rem;
+      margin-bottom: 10px;
+    }
+
+    .upload-zone h3 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .upload-zone p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
 
     /* Preview player */
     .audio-preview {
@@ -186,15 +245,27 @@
       width: 100%;
       accent-color: var(--blue);
     }
-    .audio-preview.visible { display: block; }
+
+    .audio-preview.visible {
+      display: block;
+    }
 
     /* Voice name input */
-    .voice-name-wrap { margin-top: 14px; }
-    .voice-name-wrap label { font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 5px; }
+    .voice-name-wrap {
+      margin-top: 14px;
+    }
+
+    .voice-name-wrap label {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      display: block;
+      margin-bottom: 5px;
+    }
+
     .input-field {
       width: 100%;
       padding: 9px 12px;
-      background: rgba(255,255,255,0.06);
+      background: rgba(255, 255, 255, 0.06);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       color: var(--text);
@@ -203,7 +274,10 @@
       outline: none;
       transition: border-color 0.2s;
     }
-    .input-field:focus { border-color: var(--blue); }
+
+    .input-field:focus {
+      border-color: var(--blue);
+    }
 
     /* Clone button */
     .btn {
@@ -226,17 +300,39 @@
       color: white;
       box-shadow: 0 4px 16px var(--blue-glow);
     }
+
     .btn-primary:hover:not(:disabled) {
       transform: translateY(-1px);
       box-shadow: 0 6px 22px var(--blue-glow);
     }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-    .btn-danger  { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
-    .btn-ghost   { background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); }
-    .btn-ghost:hover { border-color: var(--blue); color: var(--text); }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
 
-    .btn-full { width: 100%; margin-top: 12px; }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--red);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-ghost {
+      background: var(--bg-card);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--blue);
+      color: var(--text);
+    }
+
+    .btn-full {
+      width: 100%;
+      margin-top: 12px;
+    }
 
     /* Clone status chip */
     .clone-status {
@@ -247,9 +343,33 @@
       font-weight: 500;
       display: none;
     }
-    .clone-status.success { display: flex; align-items:center; gap:6px; background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
-    .clone-status.error   { display: flex; align-items:center; gap:6px; background: rgba(239,68,68,0.10); color: var(--red);   border: 1px solid rgba(239,68,68,0.25); }
-    .clone-status.loading { display: flex; align-items:center; gap:6px; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); }
+
+    .clone-status.success {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(34, 197, 94, 0.12);
+      color: var(--green);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+    }
+
+    .clone-status.error {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(239, 68, 68, 0.10);
+      color: var(--red);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+    }
+
+    .clone-status.loading {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-card);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
 
     /* ── Orb section ── */
     .orb-section {
@@ -262,23 +382,39 @@
 
     .orb-wrap {
       position: relative;
-      width: 130px; height: 130px;
-      display: flex; align-items: center; justify-content: center;
+      width: 130px;
+      height: 130px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     /* Outer glow rings */
     .orb-ring {
-      position: absolute; border-radius: 50%;
+      position: absolute;
+      border-radius: 50%;
       border: 2px solid transparent;
       transition: all 0.4s ease;
     }
-    .orb-ring-1 { width: 130px; height: 130px; }
-    .orb-ring-2 { width: 108px; height: 108px; }
+
+    .orb-ring-1 {
+      width: 130px;
+      height: 130px;
+    }
+
+    .orb-ring-2 {
+      width: 108px;
+      height: 108px;
+    }
 
     /* Core orb */
     .orb {
-      width: 80px; height: 80px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 30px;
       transition: all 0.4s ease;
       position: relative;
@@ -288,18 +424,35 @@
     /* ── States ── */
 
     /* idle */
-    .state-idle .orb { background: linear-gradient(135deg, #1e293b, #334155); box-shadow: none; }
-    .state-idle .orb-ring-1 { border-color: rgba(255,255,255,0.06); }
-    .state-idle .orb-ring-2 { border-color: rgba(255,255,255,0.04); }
+    .state-idle .orb {
+      background: linear-gradient(135deg, #1e293b, #334155);
+      box-shadow: none;
+    }
+
+    .state-idle .orb-ring-1 {
+      border-color: rgba(255, 255, 255, 0.06);
+    }
+
+    .state-idle .orb-ring-2 {
+      border-color: rgba(255, 255, 255, 0.04);
+    }
 
     /* listening */
     .state-listening .orb {
       background: linear-gradient(135deg, #15803d, var(--green));
-      box-shadow: 0 0 30px var(--green-glow), 0 0 60px rgba(34,197,94,0.15);
+      box-shadow: 0 0 30px var(--green-glow), 0 0 60px rgba(34, 197, 94, 0.15);
       animation: orb-pulse-green 2s ease-in-out infinite;
     }
-    .state-listening .orb-ring-1 { border-color: var(--green); animation: ring-expand 2s ease-out infinite; }
-    .state-listening .orb-ring-2 { border-color: rgba(34,197,94,0.5); animation: ring-expand 2s 0.4s ease-out infinite; }
+
+    .state-listening .orb-ring-1 {
+      border-color: var(--green);
+      animation: ring-expand 2s ease-out infinite;
+    }
+
+    .state-listening .orb-ring-2 {
+      border-color: rgba(34, 197, 94, 0.5);
+      animation: ring-expand 2s 0.4s ease-out infinite;
+    }
 
     /* thinking */
     .state-thinking .orb {
@@ -307,58 +460,157 @@
       box-shadow: 0 0 30px var(--amber-glow);
       animation: orb-spin 1.5s linear infinite;
     }
-    .state-thinking .orb-ring-1 { border-color: var(--amber); animation: ring-spin 2s linear infinite; }
-    .state-thinking .orb-ring-2 { border-color: rgba(245,158,11,0.4); animation: ring-spin 1.5s linear infinite reverse; }
+
+    .state-thinking .orb-ring-1 {
+      border-color: var(--amber);
+      animation: ring-spin 2s linear infinite;
+    }
+
+    .state-thinking .orb-ring-2 {
+      border-color: rgba(245, 158, 11, 0.4);
+      animation: ring-spin 1.5s linear infinite reverse;
+    }
 
     /* speaking */
     .state-speaking .orb {
       background: linear-gradient(135deg, #1d4ed8, var(--blue));
-      box-shadow: 0 0 30px var(--blue-glow), 0 0 60px rgba(59,130,246,0.15);
+      box-shadow: 0 0 30px var(--blue-glow), 0 0 60px rgba(59, 130, 246, 0.15);
       animation: orb-speaking 0.6s ease-in-out infinite alternate;
     }
-    .state-speaking .orb-ring-1 { border-color: var(--blue); animation: ring-expand 0.8s ease-out infinite; }
-    .state-speaking .orb-ring-2 { border-color: rgba(59,130,246,0.5); animation: ring-expand 0.8s 0.2s ease-out infinite; }
+
+    .state-speaking .orb-ring-1 {
+      border-color: var(--blue);
+      animation: ring-expand 0.8s ease-out infinite;
+    }
+
+    .state-speaking .orb-ring-2 {
+      border-color: rgba(59, 130, 246, 0.5);
+      animation: ring-expand 0.8s 0.2s ease-out infinite;
+    }
 
     /* ── Orb animations ── */
-    @keyframes orb-pulse-green { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
-    @keyframes orb-spin         { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(30deg); } }
-    @keyframes orb-speaking     { from { transform: scale(0.94); } to { transform: scale(1.06); } }
+    @keyframes orb-pulse-green {
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.06);
+      }
+    }
+
+    @keyframes orb-spin {
+      from {
+        filter: hue-rotate(0deg);
+      }
+
+      to {
+        filter: hue-rotate(30deg);
+      }
+    }
+
+    @keyframes orb-speaking {
+      from {
+        transform: scale(0.94);
+      }
+
+      to {
+        transform: scale(1.06);
+      }
+    }
 
     @keyframes ring-expand {
-      0%   { transform: scale(1); opacity: 0.8; }
-      100% { transform: scale(1.35); opacity: 0; }
+      0% {
+        transform: scale(1);
+        opacity: 0.8;
+      }
+
+      100% {
+        transform: scale(1.35);
+        opacity: 0;
+      }
     }
+
     @keyframes ring-spin {
-      from { transform: rotate(0deg) scale(1); border-style: dashed; }
-      to   { transform: rotate(360deg) scale(1.1); border-style: dashed; }
+      from {
+        transform: rotate(0deg) scale(1);
+        border-style: dashed;
+      }
+
+      to {
+        transform: rotate(360deg) scale(1.1);
+        border-style: dashed;
+      }
     }
 
     /* Waveform bars (visible during speaking) */
     .waveform {
-      display: flex; align-items: center; gap: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
       height: 32px;
       opacity: 0;
       transition: opacity 0.3s;
     }
-    .state-speaking .waveform { opacity: 1; }
+
+    .state-speaking .waveform {
+      opacity: 1;
+    }
 
     .wave-bar {
-      width: 4px; border-radius: 2px;
+      width: 4px;
+      border-radius: 2px;
       background: linear-gradient(to top, var(--blue), var(--teal));
     }
-    .wave-bar:nth-child(1) { animation: wave 0.8s 0.0s ease-in-out infinite alternate; }
-    .wave-bar:nth-child(2) { animation: wave 0.8s 0.1s ease-in-out infinite alternate; }
-    .wave-bar:nth-child(3) { animation: wave 0.8s 0.2s ease-in-out infinite alternate; }
-    .wave-bar:nth-child(4) { animation: wave 0.8s 0.3s ease-in-out infinite alternate; }
-    .wave-bar:nth-child(5) { animation: wave 0.8s 0.4s ease-in-out infinite alternate; }
-    .wave-bar:nth-child(6) { animation: wave 0.8s 0.3s ease-in-out infinite alternate; }
-    .wave-bar:nth-child(7) { animation: wave 0.8s 0.2s ease-in-out infinite alternate; }
-    .wave-bar:nth-child(8) { animation: wave 0.8s 0.1s ease-in-out infinite alternate; }
-    .wave-bar:nth-child(9) { animation: wave 0.8s 0.0s ease-in-out infinite alternate; }
+
+    .wave-bar:nth-child(1) {
+      animation: wave 0.8s 0.0s ease-in-out infinite alternate;
+    }
+
+    .wave-bar:nth-child(2) {
+      animation: wave 0.8s 0.1s ease-in-out infinite alternate;
+    }
+
+    .wave-bar:nth-child(3) {
+      animation: wave 0.8s 0.2s ease-in-out infinite alternate;
+    }
+
+    .wave-bar:nth-child(4) {
+      animation: wave 0.8s 0.3s ease-in-out infinite alternate;
+    }
+
+    .wave-bar:nth-child(5) {
+      animation: wave 0.8s 0.4s ease-in-out infinite alternate;
+    }
+
+    .wave-bar:nth-child(6) {
+      animation: wave 0.8s 0.3s ease-in-out infinite alternate;
+    }
+
+    .wave-bar:nth-child(7) {
+      animation: wave 0.8s 0.2s ease-in-out infinite alternate;
+    }
+
+    .wave-bar:nth-child(8) {
+      animation: wave 0.8s 0.1s ease-in-out infinite alternate;
+    }
+
+    .wave-bar:nth-child(9) {
+      animation: wave 0.8s 0.0s ease-in-out infinite alternate;
+    }
 
     @keyframes wave {
-      from { height: 4px;  opacity: 0.5; }
-      to   { height: 28px; opacity: 1;   }
+      from {
+        height: 4px;
+        opacity: 0.5;
+      }
+
+      to {
+        height: 28px;
+        opacity: 1;
+      }
     }
 
     /* State label */
@@ -370,13 +622,29 @@
       color: var(--text-muted);
       transition: color 0.3s;
     }
-    .state-listening .state-label { color: var(--green); }
-    .state-thinking  .state-label { color: var(--amber); }
-    .state-speaking  .state-label { color: var(--blue);  }
+
+    .state-listening .state-label {
+      color: var(--green);
+    }
+
+    .state-thinking .state-label {
+      color: var(--amber);
+    }
+
+    .state-speaking .state-label {
+      color: var(--blue);
+    }
 
     /* Controls */
-    .controls { display: flex; gap: 10px; width: 100%; }
-    .controls .btn { flex: 1; }
+    .controls {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .controls .btn {
+      flex: 1;
+    }
 
     /* ═══════════════════════════════════════════════════════════════
        RIGHT COLUMN — Transcript
@@ -412,9 +680,18 @@
       scroll-behavior: smooth;
     }
 
-    .transcript-list::-webkit-scrollbar { width: 4px; }
-    .transcript-list::-webkit-scrollbar-track { background: transparent; }
-    .transcript-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .transcript-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .transcript-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .transcript-list::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
 
     /* Empty state */
     .transcript-empty {
@@ -427,8 +704,16 @@
       color: var(--text-muted);
       text-align: center;
     }
-    .transcript-empty .icon { font-size: 2.5rem; opacity: 0.5; }
-    .transcript-empty p { font-size: 0.85rem; line-height: 1.6; }
+
+    .transcript-empty .icon {
+      font-size: 2.5rem;
+      opacity: 0.5;
+    }
+
+    .transcript-empty p {
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
 
     /* Message bubbles */
     .msg {
@@ -439,12 +724,24 @@
     }
 
     @keyframes msg-in {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
-    .msg.user   { align-items: flex-start; }
-    .msg.assistant { align-items: flex-end; }
+    .msg.user {
+      align-items: flex-start;
+    }
+
+    .msg.assistant {
+      align-items: flex-end;
+    }
 
     .msg-role {
       font-size: 0.7rem;
@@ -471,8 +768,8 @@
     }
 
     .msg.assistant .msg-bubble {
-      background: linear-gradient(135deg, rgba(59,130,246,0.18), rgba(6,182,212,0.12));
-      border: 1px solid rgba(59,130,246,0.25);
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(6, 182, 212, 0.12));
+      border: 1px solid rgba(59, 130, 246, 0.25);
       border-top-right-radius: 4px;
       color: var(--text);
     }
@@ -489,26 +786,47 @@
       align-items: center;
       gap: 5px;
       padding: 12px 16px;
-      background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(6,182,212,0.08));
-      border: 1px solid rgba(59,130,246,0.2);
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(6, 182, 212, 0.08));
+      border: 1px solid rgba(59, 130, 246, 0.2);
       border-radius: 14px;
       border-top-right-radius: 4px;
       width: fit-content;
       align-self: flex-end;
     }
-    .typing-dots.visible { display: flex; }
+
+    .typing-dots.visible {
+      display: flex;
+    }
 
     .typing-dot {
-      width: 6px; height: 6px; border-radius: 50%;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
       background: var(--blue);
       animation: dot-bounce 1.2s ease-in-out infinite;
     }
-    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
 
     @keyframes dot-bounce {
-      0%,80%,100% { transform: translateY(0); opacity: 0.4; }
-      40%          { transform: translateY(-6px); opacity: 1; }
+
+      0%,
+      80%,
+      100% {
+        transform: translateY(0);
+        opacity: 0.4;
+      }
+
+      40% {
+        transform: translateY(-6px);
+        opacity: 1;
+      }
     }
 
     /* ═══════════════════════════════════════════════════════════════
@@ -527,17 +845,26 @@
     ═══════════════════════════════════════════════════════════════ */
     .spinner {
       display: inline-block;
-      width: 14px; height: 14px;
+      width: 14px;
+      height: 14px;
       border: 2px solid currentColor;
       border-right-color: transparent;
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
 
     /* Toast */
     #toast {
-      position: fixed; bottom: 24px; right: 24px; z-index: 100;
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 100;
       padding: 12px 20px;
       border-radius: var(--radius-sm);
       font-size: 0.85rem;
@@ -548,745 +875,737 @@
       pointer-events: none;
       max-width: 320px;
     }
-    #toast.show { opacity: 1; transform: translateY(0); }
-    #toast.info    { background: rgba(59,130,246,0.9);  color: #fff; }
-    #toast.success { background: rgba(34,197,94,0.9);   color: #fff; }
-    #toast.error   { background: rgba(239,68,68,0.9);   color: #fff; }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #toast.info {
+      background: rgba(59, 130, 246, 0.9);
+      color: #fff;
+    }
+
+    #toast.success {
+      background: rgba(34, 197, 94, 0.9);
+      color: #fff;
+    }
+
+    #toast.error {
+      background: rgba(239, 68, 68, 0.9);
+      color: #fff;
+    }
   </style>
 </head>
 
 <body>
-<div class="app">
+  <div class="app">
 
-  <!-- ══════════════════════════════════════════
+    <!-- ══════════════════════════════════════════
        HEADER
   ══════════════════════════════════════════ -->
-  <header>
-    <div class="logo">🦷</div>
-    <div class="header-text">
-      <h1>SmileCare AI Admin</h1>
-      <p>Powered by OpenAI · ElevenLabs · Deepgram</p>
-    </div>
-    <div class="status-badge" id="connectionBadge">
-      <span class="status-dot"></span>
-      <span id="connectionLabel">Disconnected</span>
-    </div>
-  </header>
+    <header>
+      <div class="logo">🦷</div>
+      <div class="header-text">
+        <h1>SmileCare AI Admin</h1>
+        <p>Powered by OpenAI · ElevenLabs · Deepgram</p>
+      </div>
+      <div class="status-badge" id="connectionBadge">
+        <span class="status-dot"></span>
+        <span id="connectionLabel">Disconnected</span>
+      </div>
+    </header>
 
-  <!-- ══════════════════════════════════════════
+    <!-- ══════════════════════════════════════════
        MAIN
   ══════════════════════════════════════════ -->
-  <main>
+    <main>
 
-    <!-- LEFT COLUMN -->
-    <div class="left-col">
+      <!-- LEFT COLUMN -->
+      <div class="left-col">
 
-      <!-- Voice Upload Panel -->
-      <div class="panel">
-        <p class="panel-title">Step 1 — Clone a Voice</p>
+        <!-- Voice Upload Panel -->
+        <div class="panel">
+          <p class="panel-title">Step 1 — Clone a Voice</p>
 
-        <div class="upload-zone" id="uploadZone">
-          <input type="file" id="audioFile" accept="audio/*" />
-          <div class="upload-icon">🎙️</div>
-          <h3>Drop an audio sample here</h3>
-          <p>MP3, WAV, M4A · 10–60 seconds</p>
+          <div class="upload-zone" id="uploadZone">
+            <input type="file" id="audioFile" accept="audio/*" />
+            <div class="upload-icon">🎙️</div>
+            <h3>Drop an audio sample here</h3>
+            <p>MP3, WAV, M4A · 10–60 seconds</p>
+          </div>
+
+          <div style="text-align: center; margin: 10px 0; font-size: 0.8rem; color: var(--text-muted);">— OR —</div>
+
+          <button class="btn btn-ghost btn-full" id="recordSampleBtn" style="margin-top: 0;">
+            🔴 Record with Mic
+          </button>
+
+          <audio id="audioPreview" class="audio-preview" controls></audio>
+          <div id="audioPreview" class="audio-preview"></div>
+          <button id="useVoiceBtn" class="primary-btn"
+            style="display:none; margin-top: 10px; background: var(--green);">✨ Use this Voice Directly</button>
+
+
+          <div class="voice-name-wrap">
+            <label for="voiceNameInput">Voice label</label>
+            <input class="input-field" type="text" id="voiceNameInput" placeholder="e.g. Receptionist Voice"
+              value="Receptionist Voice" />
+          </div>
+
+          <button class="btn btn-primary btn-full" id="cloneBtn" disabled>
+            Clone Voice
+          </button>
+
+          <div class="clone-status" id="cloneStatus"></div>
         </div>
 
-        <div style="text-align: center; margin: 10px 0; font-size: 0.8rem; color: var(--text-muted);">— OR —</div>
-        
-        <button class="btn btn-ghost btn-full" id="recordSampleBtn" style="margin-top: 0;">
-          🔴 Record with Mic
-        </button>
-
-        <audio id="audioPreview" class="audio-preview" controls></audio>
-      <div id="audioPreview" class="audio-preview"></div>
-      <button id="useVoiceBtn" class="primary-btn" style="display:none; margin-top: 10px; background: var(--green);">✨ Use this Voice Directly</button>
-
-
-        <div class="voice-name-wrap">
-          <label for="voiceNameInput">Voice label</label>
-          <input
-            class="input-field"
-            type="text"
-            id="voiceNameInput"
-            placeholder="e.g. Receptionist Voice"
-            value="Receptionist Voice"
-          />
+        <!-- Manage Voices Section -->
+        <div class="panel" style="margin-top: 20px;">
+          <h3 style="font-size: 0.9rem; margin-bottom: 8px;">Manage Voices</h3>
+          <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px;">ElevenLabs limits you to 30
+            custom voices. Delete old tests to free up space.</p>
+          <button class="btn btn-ghost btn-full" id="loadVoicesBtn" style="margin-bottom: 12px;">🔄 Refresh Voice
+            List</button>
+          <div id="voiceList"
+            style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;"></div>
         </div>
 
-        <button class="btn btn-primary btn-full" id="cloneBtn" disabled>
-          Clone Voice
-        </button>
+      </div><!-- /left-col -->
+    </main>
 
-        <div class="clone-status" id="cloneStatus"></div>
-      </div>
+    <!-- FOOTER -->
+    <footer>
+      SmileCare Dental Clinic · 42, MG Road, Bengaluru · Mon–Sat 9AM–6PM · +91 98765 43210
+    </footer>
 
-      <!-- Manage Voices Section -->
-      <div class="panel" style="margin-top: 20px;">
-        <h3 style="font-size: 0.9rem; margin-bottom: 8px;">Manage Voices</h3>
-        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px;">ElevenLabs limits you to 30 custom voices. Delete old tests to free up space.</p>
-        <button class="btn btn-ghost btn-full" id="loadVoicesBtn" style="margin-bottom: 12px;">🔄 Refresh Voice List</button>
-        <div id="voiceList" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;"></div>
-      </div>
+  </div><!-- /app -->
 
-      <!-- MVP Demo Tools Section -->
-      <div class="panel" style="margin-top: 20px; border-color: rgba(59,130,246,0.5);">
-        <h3 style="font-size: 0.9rem; margin-bottom: 8px; color: var(--blue);">MVP Demo Tools</h3>
-        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px;">Trigger a mock 24-hour reminder call for testing.</p>
-        <button class="btn btn-primary btn-full" id="mockReminderBtn">
-          📞 Trigger Mock Reminder Sequence
-        </button>
-      </div>
+  <!-- Toast notification -->
+  <div id="toast"></div>
 
-      </div><!-- /left-col --></main>
-
-  <!-- FOOTER -->
-  <footer>
-    SmileCare Dental Clinic · 42, MG Road, Bengaluru · Mon–Sat 9AM–6PM · +91 98765 43210
-  </footer>
-
-</div><!-- /app -->
-
-<!-- Toast notification -->
-<div id="toast"></div>
-
-<!-- ══════════════════════════════════════════════════════════════════
+  <!-- ══════════════════════════════════════════════════════════════════
      JAVASCRIPT
 ══════════════════════════════════════════════════════════════════ -->
-<script>
+  <script>
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   USE RECORDED VOICE
-───────────────────────────────────────────────────────────────────────────── */
-document.getElementById('useVoiceBtn').addEventListener('click', async () => {
-  if (!window._recordedFile) return;
-  const file = window._recordedFile;
-  const btn = document.getElementById('useVoiceBtn');
-  
-  btn.disabled = true;
-  btn.textContent = '⏳ Cloning voice...';
-  setCloneStatus('loading', '⏳ Cloning voice…');
+    /* ─────────────────────────────────────────────────────────────────────────────
+       USE RECORDED VOICE
+    ───────────────────────────────────────────────────────────────────────────── */
+    document.getElementById('useVoiceBtn').addEventListener('click', async () => {
+      if (!window._recordedFile) return;
+      const file = window._recordedFile;
+      const btn = document.getElementById('useVoiceBtn');
 
-  const form = new FormData();
-  form.append('file', file);
-  form.append('voice_name', voiceNameInput.value.trim() || 'Admin Cloned Voice');
+      btn.disabled = true;
+      btn.textContent = '⏳ Cloning voice...';
+      setCloneStatus('loading', '⏳ Cloning voice…');
 
-  try {
-    const res  = await fetch(API_URL + '/api/clone-voice', { method: 'POST', body: form });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'Clone failed');
+      const form = new FormData();
+      form.append('file', file);
+      form.append('voice_name', voiceNameInput.value.trim() || 'Admin Cloned Voice');
 
-    setCloneStatus('success', `✓ Voice cloned & activated — "${data.name}"`);
-    toast('Voice successfully activated for the User Module!', 'success', 5000);
-    btn.textContent = '✨ Voice Active!';
-  } catch (err) {
-    setCloneStatus('error', `✗ ${err.message}`);
-    toast(err.message, 'error', 5000);
-    btn.disabled = false;
-    btn.textContent = '✨ Use this Voice Directly';
-  }
-});
+      try {
+        const res = await fetch(API_URL + '/api/clone-voice', { method: 'POST', body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Clone failed');
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   CONFIG
-───────────────────────────────────────────────────────────────────────────── */
-const WS_URL  = `ws://${location.host}/ws/audio`;
-const API_URL = `http://${location.host}`;
+        setCloneStatus('success', `✓ Voice cloned & activated — "${data.name}"`);
+        toast('Voice successfully activated for the User Module!', 'success', 5000);
+        btn.textContent = '✨ Voice Active!';
+      } catch (err) {
+        setCloneStatus('error', `✗ ${err.message}`);
+        toast(err.message, 'error', 5000);
+        btn.disabled = false;
+        btn.textContent = '✨ Use this Voice Directly';
+      }
+    });
 
-// Volume threshold for barge-in detection (0–255)
-const VAD_THRESHOLD = 150;
-// Check VAD every N ms during speaking
-const VAD_INTERVAL_MS = 80;
+    /* ─────────────────────────────────────────────────────────────────────────────
+       CONFIG
+    ───────────────────────────────────────────────────────────────────────────── */
+    const WS_URL = `ws://${location.host}/ws/audio`;
+    const API_URL = `http://${location.host}`;
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   STATE
-───────────────────────────────────────────────────────────────────────────── */
-let clonedVoiceId    = null;
-let ws               = null;
-let audioCtx         = null;
-let workletNode      = null;
-let micStream        = null;
-let analyser         = null;
-let vadTimer         = null;
-let currentAudio     = null;   // currently playing Audio element
-let pendingChunks    = [];     // MP3 chunks accumulating for current TTS response
-let appState         = 'idle'; // idle | listening | thinking | speaking
-let interimMsgEl     = null;   // DOM element for current interim transcript
+    // Volume threshold for barge-in detection (0–255)
+    const VAD_THRESHOLD = 150;
+    // Check VAD every N ms during speaking
+    const VAD_INTERVAL_MS = 80;
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   DOM REFS
-───────────────────────────────────────────────────────────────────────────── */
-const uploadZone      = document.getElementById('uploadZone');
-const audioFileInput  = document.getElementById('audioFile');
-const audioPreview    = document.getElementById('audioPreview');
-const voiceNameInput  = document.getElementById('voiceNameInput');
-const cloneBtn        = document.getElementById('cloneBtn');
-const cloneStatus     = document.getElementById('cloneStatus');
-const orbSection      = document.getElementById('orbSection');
-const orbIcon         = document.getElementById('orbIcon');
-const stateLabel      = document.getElementById('stateLabel');
-const startBtn        = document.getElementById('startBtn');
-const stopBtn         = document.getElementById('stopBtn');
-const resetBtn        = document.getElementById('resetBtn');
-const clearBtn        = document.getElementById('clearBtn');
-const transcriptList  = document.getElementById('transcriptList');
-const transcriptEmpty = document.getElementById('transcriptEmpty');
-const typingDots      = document.getElementById('typingDots');
-const connectionBadge = document.getElementById('connectionBadge');
-const connectionLabel = document.getElementById('connectionLabel');
-const toastEl         = document.getElementById('toast');
+    /* ─────────────────────────────────────────────────────────────────────────────
+       STATE
+    ───────────────────────────────────────────────────────────────────────────── */
+    let clonedVoiceId = null;
+    let ws = null;
+    let audioCtx = null;
+    let workletNode = null;
+    let micStream = null;
+    let analyser = null;
+    let vadTimer = null;
+    let currentAudio = null;   // currently playing Audio element
+    let pendingChunks = [];     // MP3 chunks accumulating for current TTS response
+    let appState = 'idle'; // idle | listening | thinking | speaking
+    let interimMsgEl = null;   // DOM element for current interim transcript
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   TOAST
-───────────────────────────────────────────────────────────────────────────── */
-let _toastTimer = null;
-function toast(msg, type = 'info', duration = 3500) {
-  toastEl.textContent = msg;
-  toastEl.className   = `show ${type}`;
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => { toastEl.className = ''; }, duration);
-}
+    /* ─────────────────────────────────────────────────────────────────────────────
+       DOM REFS
+    ───────────────────────────────────────────────────────────────────────────── */
+    const uploadZone = document.getElementById('uploadZone');
+    const audioFileInput = document.getElementById('audioFile');
+    const audioPreview = document.getElementById('audioPreview');
+    const voiceNameInput = document.getElementById('voiceNameInput');
+    const cloneBtn = document.getElementById('cloneBtn');
+    const cloneStatus = document.getElementById('cloneStatus');
+    const orbSection = document.getElementById('orbSection');
+    const orbIcon = document.getElementById('orbIcon');
+    const stateLabel = document.getElementById('stateLabel');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const transcriptList = document.getElementById('transcriptList');
+    const transcriptEmpty = document.getElementById('transcriptEmpty');
+    const typingDots = document.getElementById('typingDots');
+    const connectionBadge = document.getElementById('connectionBadge');
+    const connectionLabel = document.getElementById('connectionLabel');
+    const toastEl = document.getElementById('toast');
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   STATE MACHINE
-───────────────────────────────────────────────────────────────────────────── */
-const STATE_CONFIG = {
-  idle:      { label: 'Ready',     icon: '🎧', cls: 'state-idle'      },
-  listening: { label: 'Listening', icon: '🎤', cls: 'state-listening' },
-  thinking:  { label: 'Thinking',  icon: '💭', cls: 'state-thinking'  },
-  speaking:  { label: 'Speaking',  icon: '🔊', cls: 'state-speaking'  },
-};
-
-function setAppState(newState) {
-  appState = newState;
-  const cfg = STATE_CONFIG[newState] || STATE_CONFIG.idle;
-
-  orbSection.className = `orb-section ${cfg.cls}`;
-  orbIcon.textContent  = cfg.icon;
-  stateLabel.textContent = cfg.label;
-
-  // Typing indicator — show only during thinking
-  typingDots.classList.toggle('visible', newState === 'thinking');
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   CONNECTION BADGE
-───────────────────────────────────────────────────────────────────────────── */
-function setConnection(live) {
-  connectionBadge.className = live ? 'status-badge live' : 'status-badge';
-  connectionLabel.textContent = live ? 'Live' : 'Disconnected';
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   AUDIO FILE UPLOAD & PREVIEW
-───────────────────────────────────────────────────────────────────────────── */
-uploadZone.addEventListener('dragover',  e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
-uploadZone.addEventListener('drop', e => {
-  e.preventDefault();
-  uploadZone.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file) handleFileSelected(file);
-});
-
-audioFileInput.addEventListener('change', () => {
-  if (audioFileInput.files[0]) handleFileSelected(audioFileInput.files[0]);
-});
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   RECORD AUDIO SAMPLE
-───────────────────────────────────────────────────────────────────────────── */
-const recordSampleBtn = document.getElementById('recordSampleBtn');
-let sampleRecorder = null;
-let sampleChunks = [];
-
-recordSampleBtn.addEventListener('click', async () => {
-  if (sampleRecorder && sampleRecorder.state === 'recording') {
-    sampleRecorder.stop();
-    return;
-  }
-  
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    sampleRecorder = new MediaRecorder(stream);
-    sampleChunks = [];
-    
-    sampleRecorder.ondataavailable = e => {
-      if (e.data.size > 0) sampleChunks.push(e.data);
-    };
-    
-    sampleRecorder.onstop = () => {
-      stream.getTracks().forEach(t => t.stop());
-      recordSampleBtn.innerHTML = '🔴 Record with Mic';
-      recordSampleBtn.style.color = '';
-      
-      const blob = new Blob(sampleChunks, { type: 'audio/webm' });
-      const file = new File([blob], "recorded_sample.webm", { type: 'audio/webm' });
-      
-      // Don't auto handle, let them preview it
-      const url = URL.createObjectURL(blob);
-      const audioEl = document.getElementById('audioPreview');
-      audioEl.src = url;
-      audioEl.classList.add('visible');
-      
-      // Store the file globally for the "Use" button
-      window._recordedFile = file;
-      document.getElementById('useVoiceBtn').style.display = 'block';
-      
-      toast('Recording finished. Listen to preview, then click Use this Voice.', 'info', 5000);
-    };
-    
-    sampleRecorder.start();
-    recordSampleBtn.innerHTML = '⏹ Stop Recording';
-    recordSampleBtn.style.color = 'var(--red)';
-    toast('Recording... speak clearly for 10-30 seconds.', 'info', 4000);
-    
-  } catch (err) {
-    toast('Microphone access denied or failed.', 'error');
-  }
-});
-
-function handleFileSelected(file) {
-  if (!file.type.startsWith('audio/')) {
-    toast('Please select an audio file (MP3, WAV, M4A).', 'error');
-    return;
-  }
-  const url = URL.createObjectURL(file);
-  audioPreview.src = url;
-  audioPreview.classList.add('visible');
-  cloneBtn.disabled = false;
-  setCloneStatus('', '');
-  toast(`File selected: ${file.name}`, 'info');
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   VOICE CLONING
-───────────────────────────────────────────────────────────────────────────── */
-function setCloneStatus(type, msg) {
-  cloneStatus.className = `clone-status ${type}`;
-  cloneStatus.textContent = msg;
-}
-
-cloneBtn.addEventListener('click', async () => {
-  const file = audioFileInput.files[0];
-  if (!file) { toast('Please select an audio file first.', 'error'); return; }
-
-  cloneBtn.disabled = true;
-  setCloneStatus('loading', '⏳ Cloning voice…');
-
-  const form = new FormData();
-  form.append('file', file);
-  form.append('voice_name', voiceNameInput.value.trim() || 'Receptionist Voice');
-
-  try {
-    const res  = await fetch(`${API_URL}/api/clone-voice`, { method: 'POST', body: form });
-    const data = await res.json();
-
-    if (!res.ok) throw new Error(data.detail || 'Clone failed');
-
-    clonedVoiceId = data.voiceId;
-    setCloneStatus('success', `✓ Voice cloned — "${data.name}"`);
-    
-    toast('Voice successfully activated for the User Module!', 'success');
-
-  } catch (err) {
-    setCloneStatus('error', `✗ ${err.message}`);
-    toast(err.message, 'error', 5000);
-    cloneBtn.disabled = false;
-  }
-});
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   MIC + AUDIO CAPTURE (AudioWorklet → PCM → WebSocket)
-───────────────────────────────────────────────────────────────────────────── */
-async function startMic() {
-  micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-
-  // Create AudioContext at 16 kHz (Deepgram linear16 input)
-  audioCtx = new AudioContext({ sampleRate: 16000 });
-
-  // Add AudioWorklet module (served by FastAPI)
-  await audioCtx.audioWorklet.addModule('/processor.js');
-
-  const source = audioCtx.createMediaStreamSource(micStream);
-  workletNode  = new AudioWorkletNode(audioCtx, 'pcm-processor');
-
-  // For VAD: connect to analyser as well
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 512;
-  source.connect(analyser);
-  source.connect(workletNode);
-
-  // Forward PCM chunks to WebSocket
-  workletNode.port.onmessage = ({ data: pcmBuffer }) => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(pcmBuffer);
+    /* ─────────────────────────────────────────────────────────────────────────────
+       TOAST
+    ───────────────────────────────────────────────────────────────────────────── */
+    let _toastTimer = null;
+    function toast(msg, type = 'info', duration = 3500) {
+      toastEl.textContent = msg;
+      toastEl.className = `show ${type}`;
+      clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(() => { toastEl.className = ''; }, duration);
     }
-  };
-}
 
-function stopMic() {
-  clearVAD();
-  workletNode?.port?.close();
-  workletNode?.disconnect();
-  analyser?.disconnect();
-  micStream?.getTracks().forEach(t => t.stop());
-  audioCtx?.close();
-  workletNode = analyser = micStream = audioCtx = null;
-}
+    /* ─────────────────────────────────────────────────────────────────────────────
+       STATE MACHINE
+    ───────────────────────────────────────────────────────────────────────────── */
+    const STATE_CONFIG = {
+      idle: { label: 'Ready', icon: '🎧', cls: 'state-idle' },
+      listening: { label: 'Listening', icon: '🎤', cls: 'state-listening' },
+      thinking: { label: 'Thinking', icon: '💭', cls: 'state-thinking' },
+      speaking: { label: 'Speaking', icon: '🔊', cls: 'state-speaking' },
+    };
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   VOICE ACTIVITY DETECTION (barge-in during AI speech)
-───────────────────────────────────────────────────────────────────────────── */
-function startVAD() {
-  clearVAD();
-  const buf = new Uint8Array(analyser.frequencyBinCount);
+    function setAppState(newState) {
+      appState = newState;
+      const cfg = STATE_CONFIG[newState] || STATE_CONFIG.idle;
 
-  vadTimer = setInterval(() => {
-    if (appState !== 'speaking' || !analyser) return;
+      orbSection.className = `orb-section ${cfg.cls}`;
+      orbIcon.textContent = cfg.icon;
+      stateLabel.textContent = cfg.label;
 
-    analyser.getByteFrequencyData(buf);
-    // Average energy across mic buffer
-    const avg = buf.reduce((s, v) => s + v, 0) / buf.length;
-
-    if (avg > VAD_THRESHOLD) {
-      console.log(`[VAD] Barge-in detected (avg=${avg.toFixed(1)})`);
-      triggerBargeIn();
+      // Typing indicator — show only during thinking
+      typingDots.classList.toggle('visible', newState === 'thinking');
     }
-  }, VAD_INTERVAL_MS);
-}
 
-function clearVAD() {
-  clearInterval(vadTimer);
-  vadTimer = null;
-}
+    /* ─────────────────────────────────────────────────────────────────────────────
+       CONNECTION BADGE
+    ───────────────────────────────────────────────────────────────────────────── */
+    function setConnection(live) {
+      connectionBadge.className = live ? 'status-badge live' : 'status-badge';
+      connectionLabel.textContent = live ? 'Live' : 'Disconnected';
+    }
 
-function triggerBargeIn() {
-  cancelCurrentAudio();
-  if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'barge_in' }));
-  }
-  setAppState('listening');
-}
+    /* ─────────────────────────────────────────────────────────────────────────────
+       AUDIO FILE UPLOAD & PREVIEW
+    ───────────────────────────────────────────────────────────────────────────── */
+    uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+    uploadZone.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadZone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) handleFileSelected(file);
+    });
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   TTS AUDIO PLAYBACK
-───────────────────────────────────────────────────────────────────────────── */
-function onTTSChunk(base64Data) {
-  // Decode base64 → ArrayBuffer and accumulate
-  const bin = atob(base64Data);
-  const buf = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-  pendingChunks.push(buf.buffer);
-}
+    audioFileInput.addEventListener('change', () => {
+      if (audioFileInput.files[0]) handleFileSelected(audioFileInput.files[0]);
+    });
 
-function onTTSEnd() {
-  if (pendingChunks.length === 0) {
-    setAppState('listening');
-    return;
-  }
+    /* ─────────────────────────────────────────────────────────────────────────────
+       RECORD AUDIO SAMPLE
+    ───────────────────────────────────────────────────────────────────────────── */
+    const recordSampleBtn = document.getElementById('recordSampleBtn');
+    let sampleRecorder = null;
+    let sampleChunks = [];
 
-  // Concatenate all MP3 chunks into a single Blob and play
-  const blob = new Blob(pendingChunks, { type: 'audio/mpeg' });
-  const url  = URL.createObjectURL(blob);
-  pendingChunks = [];
+    recordSampleBtn.addEventListener('click', async () => {
+      if (sampleRecorder && sampleRecorder.state === 'recording') {
+        sampleRecorder.stop();
+        return;
+      }
 
-  const audio = new Audio(url);
-  currentAudio = audio;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        sampleRecorder = new MediaRecorder(stream);
+        sampleChunks = [];
 
-  audio.onended = () => {
-    URL.revokeObjectURL(url);
-    currentAudio = null;
-    if (appState === 'speaking') {
+        sampleRecorder.ondataavailable = e => {
+          if (e.data.size > 0) sampleChunks.push(e.data);
+        };
+
+        sampleRecorder.onstop = () => {
+          stream.getTracks().forEach(t => t.stop());
+          recordSampleBtn.innerHTML = '🔴 Record with Mic';
+          recordSampleBtn.style.color = '';
+
+          const blob = new Blob(sampleChunks, { type: 'audio/webm' });
+          const file = new File([blob], "recorded_sample.webm", { type: 'audio/webm' });
+
+          // Don't auto handle, let them preview it
+          const url = URL.createObjectURL(blob);
+          const audioEl = document.getElementById('audioPreview');
+          audioEl.src = url;
+          audioEl.classList.add('visible');
+
+          // Store the file globally for the "Use" button
+          window._recordedFile = file;
+          document.getElementById('useVoiceBtn').style.display = 'block';
+
+          toast('Recording finished. Listen to preview, then click Use this Voice.', 'info', 5000);
+        };
+
+        sampleRecorder.start();
+        recordSampleBtn.innerHTML = '⏹ Stop Recording';
+        recordSampleBtn.style.color = 'var(--red)';
+        toast('Recording... speak clearly for 10-30 seconds.', 'info', 4000);
+
+      } catch (err) {
+        toast('Microphone access denied or failed.', 'error');
+      }
+    });
+
+    function handleFileSelected(file) {
+      if (!file.type.startsWith('audio/')) {
+        toast('Please select an audio file (MP3, WAV, M4A).', 'error');
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      audioPreview.src = url;
+      audioPreview.classList.add('visible');
+      cloneBtn.disabled = false;
+      setCloneStatus('', '');
+      toast(`File selected: ${file.name}`, 'info');
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────────
+       VOICE CLONING
+    ───────────────────────────────────────────────────────────────────────────── */
+    function setCloneStatus(type, msg) {
+      cloneStatus.className = `clone-status ${type}`;
+      cloneStatus.textContent = msg;
+    }
+
+    cloneBtn.addEventListener('click', async () => {
+      const file = audioFileInput.files[0];
+      if (!file) { toast('Please select an audio file first.', 'error'); return; }
+
+      cloneBtn.disabled = true;
+      setCloneStatus('loading', '⏳ Cloning voice…');
+
+      const form = new FormData();
+      form.append('file', file);
+      form.append('voice_name', voiceNameInput.value.trim() || 'Receptionist Voice');
+
+      try {
+        const res = await fetch(`${API_URL}/api/clone-voice`, { method: 'POST', body: form });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.detail || 'Clone failed');
+
+        clonedVoiceId = data.voiceId;
+        setCloneStatus('success', `✓ Voice cloned — "${data.name}"`);
+
+        toast('Voice successfully activated for the User Module!', 'success');
+
+      } catch (err) {
+        setCloneStatus('error', `✗ ${err.message}`);
+        toast(err.message, 'error', 5000);
+        cloneBtn.disabled = false;
+      }
+    });
+
+    /* ─────────────────────────────────────────────────────────────────────────────
+       MIC + AUDIO CAPTURE (AudioWorklet → PCM → WebSocket)
+    ───────────────────────────────────────────────────────────────────────────── */
+    async function startMic() {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+
+      // Create AudioContext at 16 kHz (Deepgram linear16 input)
+      audioCtx = new AudioContext({ sampleRate: 16000 });
+
+      // Add AudioWorklet module (served by FastAPI)
+      await audioCtx.audioWorklet.addModule('/processor.js');
+
+      const source = audioCtx.createMediaStreamSource(micStream);
+      workletNode = new AudioWorkletNode(audioCtx, 'pcm-processor');
+
+      // For VAD: connect to analyser as well
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      source.connect(workletNode);
+
+      // Forward PCM chunks to WebSocket
+      workletNode.port.onmessage = ({ data: pcmBuffer }) => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(pcmBuffer);
+        }
+      };
+    }
+
+    function stopMic() {
+      clearVAD();
+      workletNode?.port?.close();
+      workletNode?.disconnect();
+      analyser?.disconnect();
+      micStream?.getTracks().forEach(t => t.stop());
+      audioCtx?.close();
+      workletNode = analyser = micStream = audioCtx = null;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────────
+       VOICE ACTIVITY DETECTION (barge-in during AI speech)
+    ───────────────────────────────────────────────────────────────────────────── */
+    function startVAD() {
+      clearVAD();
+      const buf = new Uint8Array(analyser.frequencyBinCount);
+
+      vadTimer = setInterval(() => {
+        if (appState !== 'speaking' || !analyser) return;
+
+        analyser.getByteFrequencyData(buf);
+        // Average energy across mic buffer
+        const avg = buf.reduce((s, v) => s + v, 0) / buf.length;
+
+        if (avg > VAD_THRESHOLD) {
+          console.log(`[VAD] Barge-in detected (avg=${avg.toFixed(1)})`);
+          triggerBargeIn();
+        }
+      }, VAD_INTERVAL_MS);
+    }
+
+    function clearVAD() {
+      clearInterval(vadTimer);
+      vadTimer = null;
+    }
+
+    function triggerBargeIn() {
+      cancelCurrentAudio();
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'barge_in' }));
+      }
       setAppState('listening');
     }
-  };
 
-  audio.onerror = () => {
-    URL.revokeObjectURL(url);
-    currentAudio = null;
-    setAppState('listening');
-  };
-
-  audio.play().catch(err => {
-    console.error('[audio] Play failed:', err);
-    setAppState('listening');
-  });
-}
-
-function cancelCurrentAudio() {
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.currentTime = 0;
-    currentAudio = null;
-  }
-  pendingChunks = [];
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   WEBSOCKET
-───────────────────────────────────────────────────────────────────────────── */
-function openWebSocket() {
-  ws = new WebSocket(WS_URL);
-
-  ws.onopen = () => {
-    setConnection(true);
-    toast('Connected to AI receptionist.', 'success');
-
-    // Send voice config
-    if (clonedVoiceId) {
-      ws.send(JSON.stringify({ type: 'config', voiceId: clonedVoiceId }));
+    /* ─────────────────────────────────────────────────────────────────────────────
+       TTS AUDIO PLAYBACK
+    ───────────────────────────────────────────────────────────────────────────── */
+    function onTTSChunk(base64Data) {
+      // Decode base64 → ArrayBuffer and accumulate
+      const bin = atob(base64Data);
+      const buf = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      pendingChunks.push(buf.buffer);
     }
 
-    setAppState('listening');
-    startBtn.disabled = true;
-    stopBtn.disabled  = false;
-    startVAD();
-  };
-
-  ws.onmessage = ({ data }) => {
-    let msg;
-    try { msg = JSON.parse(data); } catch { return; }
-
-    switch (msg.type) {
-
-      case 'state':
-        setAppState(msg.state);
-        break;
-
-      case 'transcript':
-        handleTranscript(msg.text, msg.isFinal);
-        break;
-
-      case 'reply':
-        addMessage('assistant', msg.text, false);
-        break;
-
-      case 'tts_start':
-        pendingChunks = [];
-        break;
-
-      case 'tts_chunk':
-        onTTSChunk(msg.data);
-        break;
-
-      case 'tts_end':
-        onTTSEnd();
-        break;
-
-      case 'tts_cancelled':
-        cancelCurrentAudio();
-        pendingChunks = [];
-        break;
-
-      case 'error':
-        toast(msg.message, 'error');
+    function onTTSEnd() {
+      if (pendingChunks.length === 0) {
         setAppState('listening');
-        break;
+        return;
+      }
+
+      // Concatenate all MP3 chunks into a single Blob and play
+      const blob = new Blob(pendingChunks, { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      pendingChunks = [];
+
+      const audio = new Audio(url);
+      currentAudio = audio;
+
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        currentAudio = null;
+        if (appState === 'speaking') {
+          setAppState('listening');
+        }
+      };
+
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        currentAudio = null;
+        setAppState('listening');
+      };
+
+      audio.play().catch(err => {
+        console.error('[audio] Play failed:', err);
+        setAppState('listening');
+      });
     }
-  };
 
-  ws.onerror = (e) => {
-    console.error('[ws] Error', e);
-    toast('WebSocket error. Check that the server is running.', 'error');
-  };
-
-  ws.onclose = () => {
-    setConnection(false);
-    setAppState('idle');
-    
-    stopBtn.disabled  = true;
-    clearVAD();
-  };
-}
-
-function closeWebSocket() {
-  if (ws) {
-    ws.send(JSON.stringify({ type: 'stop' }));
-    ws.close();
-    ws = null;
-  }
-  setAppState('idle');
-  cancelCurrentAudio();
-  clearVAD();
-  setConnection(false);
-  
-  stopBtn.disabled  = true;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   TRANSCRIPT UI
-───────────────────────────────────────────────────────────────────────────── */
-function handleTranscript(text, isFinal) {
-  if (!text.trim()) return;
-
-  hideEmpty();
-
-  if (!isFinal) {
-    // Update or create interim bubble
-    if (!interimMsgEl) {
-      interimMsgEl = createMsgEl('user', text, true);
-      transcriptList.appendChild(interimMsgEl);
-    } else {
-      interimMsgEl.querySelector('.msg-bubble').textContent = text;
+    function cancelCurrentAudio() {
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
+      }
+      pendingChunks = [];
     }
-  } else {
-    // Replace interim with final
-    if (interimMsgEl) {
-      interimMsgEl.querySelector('.msg-bubble').classList.remove('interim');
-      interimMsgEl.querySelector('.msg-bubble').textContent = text;
+
+    /* ─────────────────────────────────────────────────────────────────────────────
+       WEBSOCKET
+    ───────────────────────────────────────────────────────────────────────────── */
+    function openWebSocket() {
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        setConnection(true);
+        toast('Connected to AI receptionist.', 'success');
+
+        // Send voice config
+        if (clonedVoiceId) {
+          ws.send(JSON.stringify({ type: 'config', voiceId: clonedVoiceId }));
+        }
+
+        setAppState('listening');
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        startVAD();
+      };
+
+      ws.onmessage = ({ data }) => {
+        let msg;
+        try { msg = JSON.parse(data); } catch { return; }
+
+        switch (msg.type) {
+
+          case 'state':
+            setAppState(msg.state);
+            break;
+
+          case 'transcript':
+            handleTranscript(msg.text, msg.isFinal);
+            break;
+
+          case 'reply':
+            addMessage('assistant', msg.text, false);
+            break;
+
+          case 'tts_start':
+            pendingChunks = [];
+            break;
+
+          case 'tts_chunk':
+            onTTSChunk(msg.data);
+            break;
+
+          case 'tts_end':
+            onTTSEnd();
+            break;
+
+          case 'tts_cancelled':
+            cancelCurrentAudio();
+            pendingChunks = [];
+            break;
+
+          case 'error':
+            toast(msg.message, 'error');
+            setAppState('listening');
+            break;
+        }
+      };
+
+      ws.onerror = (e) => {
+        console.error('[ws] Error', e);
+        toast('WebSocket error. Check that the server is running.', 'error');
+      };
+
+      ws.onclose = () => {
+        setConnection(false);
+        setAppState('idle');
+
+        stopBtn.disabled = true;
+        clearVAD();
+      };
+    }
+
+    function closeWebSocket() {
+      if (ws) {
+        ws.send(JSON.stringify({ type: 'stop' }));
+        ws.close();
+        ws = null;
+      }
+      setAppState('idle');
+      cancelCurrentAudio();
+      clearVAD();
+      setConnection(false);
+
+      stopBtn.disabled = true;
+    }
+
+    /* ─────────────────────────────────────────────────────────────────────────────
+       TRANSCRIPT UI
+    ───────────────────────────────────────────────────────────────────────────── */
+    function handleTranscript(text, isFinal) {
+      if (!text.trim()) return;
+
+      hideEmpty();
+
+      if (!isFinal) {
+        // Update or create interim bubble
+        if (!interimMsgEl) {
+          interimMsgEl = createMsgEl('user', text, true);
+          transcriptList.appendChild(interimMsgEl);
+        } else {
+          interimMsgEl.querySelector('.msg-bubble').textContent = text;
+        }
+      } else {
+        // Replace interim with final
+        if (interimMsgEl) {
+          interimMsgEl.querySelector('.msg-bubble').classList.remove('interim');
+          interimMsgEl.querySelector('.msg-bubble').textContent = text;
+          interimMsgEl = null;
+        } else {
+          addMessage('user', text, false);
+        }
+      }
+      scrollToBottom();
+    }
+
+    function addMessage(role, text, isInterim = false) {
+      hideEmpty();
+      const el = createMsgEl(role, text, isInterim);
+      transcriptList.appendChild(el);
+      scrollToBottom();
+      return el;
+    }
+
+    function createMsgEl(role, text, isInterim) {
+      const wrap = document.createElement('div');
+      wrap.className = `msg ${role}`;
+
+      const roleEl = document.createElement('div');
+      roleEl.className = 'msg-role';
+      roleEl.textContent = role === 'user' ? '🎤 You' : '🤖 Receptionist';
+
+      const bubble = document.createElement('div');
+      bubble.className = `msg-bubble${isInterim ? ' interim' : ''}`;
+      bubble.textContent = text;
+
+      wrap.append(roleEl, bubble);
+      return wrap;
+    }
+
+    function scrollToBottom() {
+      requestAnimationFrame(() => {
+        transcriptList.scrollTop = transcriptList.scrollHeight;
+      });
+    }
+
+    function hideEmpty() {
+      transcriptEmpty.style.display = 'none';
+    }
+
+    function clearTranscript() {
+      transcriptList.innerHTML = '';
+      transcriptList.appendChild(transcriptEmpty);
+      transcriptEmpty.style.display = '';
       interimMsgEl = null;
-    } else {
-      addMessage('user', text, false);
     }
-  }
-  scrollToBottom();
-}
 
-function addMessage(role, text, isInterim = false) {
-  hideEmpty();
-  const el = createMsgEl(role, text, isInterim);
-  transcriptList.appendChild(el);
-  scrollToBottom();
-  return el;
-}
+    /* ─────────────────────────────────────────────────────────────────────────────
+       CONTROLS
+    ───────────────────────────────────────────────────────────────────────────── */
+    if (startBtn) startBtn.addEventListener('click', async () => {
+      if (!clonedVoiceId) {
+        toast('Please clone a voice first.', 'error');
+        return;
+      }
+      try {
+        await startMic();
+        openWebSocket();
+      } catch (err) {
+        toast(`Microphone error: ${err.message}`, 'error');
+      }
+    });
 
-function createMsgEl(role, text, isInterim) {
-  const wrap = document.createElement('div');
-  wrap.className = `msg ${role}`;
+    if (stopBtn) stopBtn.addEventListener('click', () => {
+      closeWebSocket();
+      stopMic();
+    });
 
-  const roleEl = document.createElement('div');
-  roleEl.className = 'msg-role';
-  roleEl.textContent = role === 'user' ? '🎤 You' : '🤖 Receptionist';
+    if (resetBtn) resetBtn.addEventListener('click', () => {
+      closeWebSocket();
+      stopMic();
+      clearTranscript();
+      setAppState('idle');
+      toast('Conversation reset.', 'info');
+    });
 
-  const bubble = document.createElement('div');
-  bubble.className = `msg-bubble${isInterim ? ' interim' : ''}`;
-  bubble.textContent = text;
-
-  wrap.append(roleEl, bubble);
-  return wrap;
-}
-
-function scrollToBottom() {
-  requestAnimationFrame(() => {
-    transcriptList.scrollTop = transcriptList.scrollHeight;
-  });
-}
-
-function hideEmpty() {
-  transcriptEmpty.style.display = 'none';
-}
-
-function clearTranscript() {
-  transcriptList.innerHTML = '';
-  transcriptList.appendChild(transcriptEmpty);
-  transcriptEmpty.style.display = '';
-  interimMsgEl = null;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   CONTROLS
-───────────────────────────────────────────────────────────────────────────── */
-if (startBtn) startBtn.addEventListener('click', async () => {
-  if (!clonedVoiceId) {
-    toast('Please clone a voice first.', 'error');
-    return;
-  }
-  try {
-    await startMic();
-    openWebSocket();
-  } catch (err) {
-    toast(`Microphone error: ${err.message}`, 'error');
-  }
-});
-
-if (stopBtn) stopBtn.addEventListener('click', () => {
-  closeWebSocket();
-  stopMic();
-});
-
-if (resetBtn) resetBtn.addEventListener('click', () => {
-  closeWebSocket();
-  stopMic();
-  clearTranscript();
-  setAppState('idle');
-  toast('Conversation reset.', 'info');
-});
-
-if (clearBtn) clearBtn.addEventListener('click', clearTranscript);
+    if (clearBtn) clearBtn.addEventListener('click', clearTranscript);
 
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   MANAGE VOICES LOGIC
-───────────────────────────────────────────────────────────────────────────── */
-const loadVoicesBtn = document.getElementById('loadVoicesBtn');
-const voiceList = document.getElementById('voiceList');
+    /* ─────────────────────────────────────────────────────────────────────────────
+       MANAGE VOICES LOGIC
+    ───────────────────────────────────────────────────────────────────────────── */
+    const loadVoicesBtn = document.getElementById('loadVoicesBtn');
+    const voiceList = document.getElementById('voiceList');
 
-async function fetchVoices() {
-  if (!voiceList) return;
-  voiceList.innerHTML = '<p style="font-size:0.75rem; color:var(--text-muted);">Loading voices...</p>';
-  try {
-    const res = await fetch('/api/voices');
-    const voices = await res.json();
-    voiceList.innerHTML = '';
-    if (voices.length === 0) {
-      voiceList.innerHTML = '<p style="font-size:0.75rem; color:var(--text-muted);">No cloned voices found.</p>';
-      return;
-    }
-    voices.forEach(v => {
-      const div = document.createElement('div');
-      div.style = 'display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);';
-      div.innerHTML = `
+    async function fetchVoices() {
+      if (!voiceList) return;
+      voiceList.innerHTML = '<p style="font-size:0.75rem; color:var(--text-muted);">Loading voices...</p>';
+      try {
+        const res = await fetch('/api/voices');
+        const voices = await res.json();
+        voiceList.innerHTML = '';
+        if (voices.length === 0) {
+          voiceList.innerHTML = '<p style="font-size:0.75rem; color:var(--text-muted);">No cloned voices found.</p>';
+          return;
+        }
+        voices.forEach(v => {
+          const div = document.createElement('div');
+          div.style = 'display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);';
+          div.innerHTML = `
         <div style="font-size:0.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
           <strong>${v.name}</strong>
           <div style="font-size:0.65rem; color:var(--text-muted);">${new Date(v.createdAt).toLocaleDateString()}</div>
         </div>
         <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.7rem;" onclick="deleteVoice(${v.id}, '${v.name}')">Delete</button>
       `;
-      voiceList.appendChild(div);
-    });
-  } catch (e) {
-    voiceList.innerHTML = '<p style="font-size:0.75rem; color:var(--red);">Failed to load voices.</p>';
-  }
-}
-
-window.deleteVoice = async function(id, name) {
-  if (!confirm(`Delete voice '${name}'?`)) return;
-  toast(`Deleting '${name}'...`, 'info');
-  try {
-    const res = await fetch(`/api/voices/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      toast(`Voice '${name}' deleted!`, 'success');
-      fetchVoices();
-    } else {
-      toast(`Failed to delete '${name}'`, 'error');
+          voiceList.appendChild(div);
+        });
+      } catch (e) {
+        voiceList.innerHTML = '<p style="font-size:0.75rem; color:var(--red);">Failed to load voices.</p>';
+      }
     }
-  } catch (e) {
-    toast(`Error: ${e}`, 'error');
-  }
-};
 
-if (loadVoicesBtn) {
-  loadVoicesBtn.addEventListener('click', fetchVoices);
-  fetchVoices();
-}
+    window.deleteVoice = async function (id, name) {
+      if (!confirm(`Delete voice '${name}'?`)) return;
+      toast(`Deleting '${name}'...`, 'info');
+      try {
+        const res = await fetch(`/api/voices/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          toast(`Voice '${name}' deleted!`, 'success');
+          fetchVoices();
+        } else {
+          toast(`Failed to delete '${name}'`, 'error');
+        }
+      } catch (e) {
+        toast(`Error: ${e}`, 'error');
+      }
+    };
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   MVP DEMO TOOLS LOGIC
-───────────────────────────────────────────────────────────────────────────── */
-const mockReminderBtn = document.getElementById('mockReminderBtn');
-if (mockReminderBtn) {
-  mockReminderBtn.addEventListener('click', () => {
-    alert('Button was clicked!');
-    toast('Scanning database for upcoming appointments...', 'info');
-    setTimeout(() => {
-      toast('Found 1 appointment: John Doe (Tomorrow 10:00 AM)', 'info');
-      setTimeout(() => {
-        toast('Initiating outbound Twilio call to +91 98765 43210...', 'success', 5000);
-      }, 2000);
-    }, 1500);
-  });
-}
-</script>
+    if (loadVoicesBtn) {
+      loadVoicesBtn.addEventListener('click', fetchVoices);
+      fetchVoices();
+    }
+
+  </script>
 </body>
+
 </html>

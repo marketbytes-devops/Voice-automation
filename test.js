@@ -7,7 +7,7 @@ document.getElementById('useVoiceBtn').addEventListener('click', async () => {
   if (!window._recordedFile) return;
   const file = window._recordedFile;
   const btn = document.getElementById('useVoiceBtn');
-  
+
   btn.disabled = true;
   btn.textContent = '⏳ Cloning voice...';
   setCloneStatus('loading', '⏳ Cloning voice…');
@@ -17,7 +17,7 @@ document.getElementById('useVoiceBtn').addEventListener('click', async () => {
   form.append('voice_name', voiceNameInput.value.trim() || 'Admin Cloned Voice');
 
   try {
-    const res  = await fetch(API_URL + '/api/clone-voice', { method: 'POST', body: form });
+    const res = await fetch(API_URL + '/api/clone-voice', { method: 'POST', body: form });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Clone failed');
 
@@ -35,7 +35,7 @@ document.getElementById('useVoiceBtn').addEventListener('click', async () => {
 /* ─────────────────────────────────────────────────────────────────────────────
    CONFIG
 ───────────────────────────────────────────────────────────────────────────── */
-const WS_URL  = `ws://${location.host}/ws/audio`;
+const WS_URL = `ws://${location.host}/ws/audio`;
 const API_URL = `http://${location.host}`;
 
 // Volume threshold for barge-in detection (0–255)
@@ -46,40 +46,40 @@ const VAD_INTERVAL_MS = 80;
 /* ─────────────────────────────────────────────────────────────────────────────
    STATE
 ───────────────────────────────────────────────────────────────────────────── */
-let clonedVoiceId    = null;
-let ws               = null;
-let audioCtx         = null;
-let workletNode      = null;
-let micStream        = null;
-let analyser         = null;
-let vadTimer         = null;
-let currentAudio     = null;   // currently playing Audio element
-let pendingChunks    = [];     // MP3 chunks accumulating for current TTS response
-let appState         = 'idle'; // idle | listening | thinking | speaking
-let interimMsgEl     = null;   // DOM element for current interim transcript
+let clonedVoiceId = null;
+let ws = null;
+let audioCtx = null;
+let workletNode = null;
+let micStream = null;
+let analyser = null;
+let vadTimer = null;
+let currentAudio = null;   // currently playing Audio element
+let pendingChunks = [];     // MP3 chunks accumulating for current TTS response
+let appState = 'idle'; // idle | listening | thinking | speaking
+let interimMsgEl = null;   // DOM element for current interim transcript
 
 /* ─────────────────────────────────────────────────────────────────────────────
    DOM REFS
 ───────────────────────────────────────────────────────────────────────────── */
-const uploadZone      = document.getElementById('uploadZone');
-const audioFileInput  = document.getElementById('audioFile');
-const audioPreview    = document.getElementById('audioPreview');
-const voiceNameInput  = document.getElementById('voiceNameInput');
-const cloneBtn        = document.getElementById('cloneBtn');
-const cloneStatus     = document.getElementById('cloneStatus');
-const orbSection      = document.getElementById('orbSection');
-const orbIcon         = document.getElementById('orbIcon');
-const stateLabel      = document.getElementById('stateLabel');
-const startBtn        = document.getElementById('startBtn');
-const stopBtn         = document.getElementById('stopBtn');
-const resetBtn        = document.getElementById('resetBtn');
-const clearBtn        = document.getElementById('clearBtn');
-const transcriptList  = document.getElementById('transcriptList');
+const uploadZone = document.getElementById('uploadZone');
+const audioFileInput = document.getElementById('audioFile');
+const audioPreview = document.getElementById('audioPreview');
+const voiceNameInput = document.getElementById('voiceNameInput');
+const cloneBtn = document.getElementById('cloneBtn');
+const cloneStatus = document.getElementById('cloneStatus');
+const orbSection = document.getElementById('orbSection');
+const orbIcon = document.getElementById('orbIcon');
+const stateLabel = document.getElementById('stateLabel');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const resetBtn = document.getElementById('resetBtn');
+const clearBtn = document.getElementById('clearBtn');
+const transcriptList = document.getElementById('transcriptList');
 const transcriptEmpty = document.getElementById('transcriptEmpty');
-const typingDots      = document.getElementById('typingDots');
+const typingDots = document.getElementById('typingDots');
 const connectionBadge = document.getElementById('connectionBadge');
 const connectionLabel = document.getElementById('connectionLabel');
-const toastEl         = document.getElementById('toast');
+const toastEl = document.getElementById('toast');
 
 /* ─────────────────────────────────────────────────────────────────────────────
    TOAST
@@ -87,7 +87,7 @@ const toastEl         = document.getElementById('toast');
 let _toastTimer = null;
 function toast(msg, type = 'info', duration = 3500) {
   toastEl.textContent = msg;
-  toastEl.className   = `show ${type}`;
+  toastEl.className = `show ${type}`;
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => { toastEl.className = ''; }, duration);
 }
@@ -96,10 +96,10 @@ function toast(msg, type = 'info', duration = 3500) {
    STATE MACHINE
 ───────────────────────────────────────────────────────────────────────────── */
 const STATE_CONFIG = {
-  idle:      { label: 'Ready',     icon: '🎧', cls: 'state-idle'      },
+  idle: { label: 'Ready', icon: '🎧', cls: 'state-idle' },
   listening: { label: 'Listening', icon: '🎤', cls: 'state-listening' },
-  thinking:  { label: 'Thinking',  icon: '💭', cls: 'state-thinking'  },
-  speaking:  { label: 'Speaking',  icon: '🔊', cls: 'state-speaking'  },
+  thinking: { label: 'Thinking', icon: '💭', cls: 'state-thinking' },
+  speaking: { label: 'Speaking', icon: '🔊', cls: 'state-speaking' },
 };
 
 function setAppState(newState) {
@@ -107,7 +107,7 @@ function setAppState(newState) {
   const cfg = STATE_CONFIG[newState] || STATE_CONFIG.idle;
 
   orbSection.className = `orb-section ${cfg.cls}`;
-  orbIcon.textContent  = cfg.icon;
+  orbIcon.textContent = cfg.icon;
   stateLabel.textContent = cfg.label;
 
   // Typing indicator — show only during thinking
@@ -125,7 +125,7 @@ function setConnection(live) {
 /* ─────────────────────────────────────────────────────────────────────────────
    AUDIO FILE UPLOAD & PREVIEW
 ───────────────────────────────────────────────────────────────────────────── */
-uploadZone.addEventListener('dragover',  e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
 uploadZone.addEventListener('drop', e => {
   e.preventDefault();
@@ -150,42 +150,42 @@ recordSampleBtn.addEventListener('click', async () => {
     sampleRecorder.stop();
     return;
   }
-  
+
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     sampleRecorder = new MediaRecorder(stream);
     sampleChunks = [];
-    
+
     sampleRecorder.ondataavailable = e => {
       if (e.data.size > 0) sampleChunks.push(e.data);
     };
-    
+
     sampleRecorder.onstop = () => {
       stream.getTracks().forEach(t => t.stop());
       recordSampleBtn.innerHTML = '🔴 Record with Mic';
       recordSampleBtn.style.color = '';
-      
+
       const blob = new Blob(sampleChunks, { type: 'audio/webm' });
       const file = new File([blob], "recorded_sample.webm", { type: 'audio/webm' });
-      
+
       // Don't auto handle, let them preview it
       const url = URL.createObjectURL(blob);
       const audioEl = document.getElementById('audioPreview');
       audioEl.src = url;
       audioEl.classList.add('visible');
-      
+
       // Store the file globally for the "Use" button
       window._recordedFile = file;
       document.getElementById('useVoiceBtn').style.display = 'block';
-      
+
       toast('Recording finished. Listen to preview, then click Use this Voice.', 'info', 5000);
     };
-    
+
     sampleRecorder.start();
     recordSampleBtn.innerHTML = '⏹ Stop Recording';
     recordSampleBtn.style.color = 'var(--red)';
     toast('Recording... speak clearly for 10-30 seconds.', 'info', 4000);
-    
+
   } catch (err) {
     toast('Microphone access denied or failed.', 'error');
   }
@@ -224,14 +224,14 @@ cloneBtn.addEventListener('click', async () => {
   form.append('voice_name', voiceNameInput.value.trim() || 'Receptionist Voice');
 
   try {
-    const res  = await fetch(`${API_URL}/api/clone-voice`, { method: 'POST', body: form });
+    const res = await fetch(`${API_URL}/api/clone-voice`, { method: 'POST', body: form });
     const data = await res.json();
 
     if (!res.ok) throw new Error(data.detail || 'Clone failed');
 
     clonedVoiceId = data.voiceId;
     setCloneStatus('success', `✓ Voice cloned — "${data.name}"`);
-    
+
     toast('Voice successfully activated for the User Module!', 'success');
 
   } catch (err) {
@@ -254,7 +254,7 @@ async function startMic() {
   await audioCtx.audioWorklet.addModule('/processor.js');
 
   const source = audioCtx.createMediaStreamSource(micStream);
-  workletNode  = new AudioWorkletNode(audioCtx, 'pcm-processor');
+  workletNode = new AudioWorkletNode(audioCtx, 'pcm-processor');
 
   // For VAD: connect to analyser as well
   analyser = audioCtx.createAnalyser();
@@ -333,7 +333,7 @@ function onTTSEnd() {
 
   // Concatenate all MP3 chunks into a single Blob and play
   const blob = new Blob(pendingChunks, { type: 'audio/mpeg' });
-  const url  = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
   pendingChunks = [];
 
   const audio = new Audio(url);
@@ -385,7 +385,7 @@ function openWebSocket() {
 
     setAppState('listening');
     startBtn.disabled = true;
-    stopBtn.disabled  = false;
+    stopBtn.disabled = false;
     startVAD();
   };
 
@@ -439,8 +439,8 @@ function openWebSocket() {
   ws.onclose = () => {
     setConnection(false);
     setAppState('idle');
-    
-    stopBtn.disabled  = true;
+
+    stopBtn.disabled = true;
     clearVAD();
   };
 }
@@ -455,8 +455,8 @@ function closeWebSocket() {
   cancelCurrentAudio();
   clearVAD();
   setConnection(false);
-  
-  stopBtn.disabled  = true;
+
+  stopBtn.disabled = true;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -595,7 +595,7 @@ async function fetchVoices() {
   }
 }
 
-window.deleteVoice = async function(id, name) {
+window.deleteVoice = async function (id, name) {
   if (!confirm(`Delete voice '${name}'?`)) return;
   toast(`Deleting '${name}'...`, 'info');
   try {
@@ -616,19 +616,3 @@ if (loadVoicesBtn) {
   fetchVoices();
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   MVP DEMO TOOLS LOGIC
-───────────────────────────────────────────────────────────────────────────── */
-const mockReminderBtn = document.getElementById('mockReminderBtn');
-if (mockReminderBtn) {
-  mockReminderBtn.addEventListener('click', () => {
-    alert('Button was clicked!');
-    toast('Scanning database for upcoming appointments...', 'info');
-    setTimeout(() => {
-      toast('Found 1 appointment: John Doe (Tomorrow 10:00 AM)', 'info');
-      setTimeout(() => {
-        toast('Initiating outbound Twilio call to +91 98765 43210...', 'success', 5000);
-      }, 2000);
-    }, 1500);
-  });
-}

@@ -14,32 +14,14 @@ _HEADERS = {"xi-api-key": settings.ELEVENLABS_API_KEY}
 
 
 async def clone_voice(audio_bytes: bytes, filename: str, voice_name: str) -> dict:
-    """
-    Uploads an audio sample to ElevenLabs Instant Voice Cloning.
-    If the account is on a free tier (missing voices_write permission),
-    it mocks the cloning process by returning a pre-made voice ID.
-    Returns: { "voice_id": "...", "name": "..." }
-    """
+    """Upload an audio sample to ElevenLabs Instant Voice Cloning."""
     async with httpx.AsyncClient(timeout=60) as client:
-        print(f"[DEBUG] clone_voice using API key: {_HEADERS['xi-api-key'][:8]}...")
         resp = await client.post(
             f"{_BASE}/voices/add",
             headers=_HEADERS,
-            files={"files": (filename, audio_bytes, "audio/mpeg")},
+            files={"files": (filename, audio_bytes, "application/octet-stream")},
             data={"name": voice_name},
         )
-        
-        # Automatic fallback for free-tier users
-        if resp.status_code == 401:
-            try:
-                err_data = resp.json()
-                msg = err_data.get("detail", {}).get("message", "")
-                if "voices_write" in msg:
-                    print(f"[ElevenLabs] Free tier detected. Mocking clone for '{voice_name}' with Rachel's voice.")
-                    return {"voice_id": "21m00Tcm4TlvDq8ikWAM", "name": f"{voice_name} (Free Fallback)"}
-            except Exception:
-                pass
-                
         resp.raise_for_status()
         data = resp.json()
         return {"voice_id": data["voice_id"], "name": voice_name}
@@ -88,7 +70,10 @@ async def list_voices() -> list:
 
 
 async def delete_voice(voice_id: str) -> bool:
-    """Deletes a cloned voice from ElevenLabs."""
+    """Deletes a cloned voice from ElevenLabs; preserve local profile on failure."""
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.delete(f"{_BASE}/voices/{voice_id}", headers=_HEADERS)
-        return resp.status_code == 200
+        if resp.status_code not in {200, 204}:
+            resp.raise_for_status()
+            raise httpx.HTTPStatusError("Voice deletion was not confirmed", request=resp.request, response=resp)
+        return True

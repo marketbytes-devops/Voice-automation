@@ -17,7 +17,7 @@ from config import settings
 from database.connection import engine
 from database.models import Base
 from database.seed import seed_db
-from routers import audio_ws, voice
+from routers import audio_ws, voice, admin_data
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
@@ -26,18 +26,20 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# ── CORS (allow browser to call from any origin during dev) ───────────────────
+# ── CORS: use the same explicit origin allowlist as the public WebSocket ──────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=[origin.strip() for origin in settings.ALLOWED_ORIGINS.split(",") if origin.strip()],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-Admin-Key"],
 )
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(voice.router)
 app.include_router(audio_ws.router)
+app.include_router(admin_data.router)
+app.include_router(admin_data.public_router)
 
 
 
@@ -55,6 +57,16 @@ def startup():
     Base.metadata.create_all(bind=engine)
     print("[startup] Seeding clinic data…")
     seed_db()
+    from database.models import LanguageSetting
+    from database.connection import SessionLocal
+    db = SessionLocal()
+    try:
+        for code, name, provider in [("en", "English", "en-US"), ("ta", "Tamil", "ta"), ("zh", "Mandarin", "zh-CN"), ("ms", "Malay", "ms-MY")]:
+            if not db.query(LanguageSetting).filter_by(code=code).first():
+                db.add(LanguageSetting(code=code, name=name, deepgram_language=provider, enabled=(code == "en")))
+        db.commit()
+    finally:
+        db.close()
     print("[startup] Ready. Visit http://localhost:8000")
 
 

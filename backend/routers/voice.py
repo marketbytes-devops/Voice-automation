@@ -1,133 +1,100 @@
-"""
-routers/voice.py – Voice cloning endpoints.
-
-POST /api/clone-voice   → Upload audio, clone voice via ElevenLabs, save to DB
-GET  /api/voices        → List all cloned voices stored in DB
-DELETE /api/voices/{id} → Remove a voice profile from DB and ElevenLabs
-"""
-from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
+"""Protected voice-profile administration endpoints."""
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+import httpx
 
 from database.connection import get_db
 from database.models import VoiceProfile
-from services.elevenlabs_service import clone_voice, delete_voice
-import httpx
+from security import require_admin
+from services.elevenlabs_service import clone_voice, delete_voice, tts_stream
 
-router = APIRouter(prefix="/api", tags=["Voice"])
+router = APIRouter(prefix="/api", tags=["Voice"], dependencies=[Depends(require_admin)])
+MAX_AUDIO_BYTES = 20 * 1024 * 1024
+ALLOWED_AUDIO = {"audio/mpeg", "audio/wav", "audio/x-wav", "audio/mp4", "audio/x-m4a", "audio/ogg", "audio/webm", "video/webm"}
 
 
 @router.post("/clone-voice")
-async def clone_voice_endpoint(
-    file: UploadFile = File(..., description="Audio sample (mp3/wav/m4a, 10–60s)"),
-    voice_name: str = Form("Receptionist Voice"),
-    db: Session = Depends(get_db),
-):
-    """
-    Uploads the audio sample to ElevenLabs Instant Voice Cloning.
-    Stores the returned voice_id in MySQL so we can reference it later.
-    """
-    # Validate file type
-    allowed = {"audio/mpeg", "audio/wav", "audio/x-wav", "audio/mp4",
-               "audio/x-m4a", "audio/ogg", "video/webm", "audio/webm"}
-    if file.content_type not in allowed:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type: {file.content_type}. Use mp3, wav, or m4a.",
-        )
-
-    audio_bytes = await file.read()
-
+async def clone_voice_endpoint(file: UploadFile = File(...), voice_name: str = Form(...), db: Session = Depends(get_db)):
+    label = voice_name.strip()
+    if not label or len(label) > 100:
+        raise HTTPException(400, "Voice label must contain 1–100 characters")
+    if file.content_type not in ALLOWED_AUDIO:
+        raise HTTPException(415, "Unsupported audio type. Upload MP3, WAV, M4A, OGG, or WebM.")
+    audio_bytes = await file.read(MAX_AUDIO_BYTES + 1)
+    if not audio_bytes or len(audio_bytes) > MAX_AUDIO_BYTES:
+        raise HTTPException(413, "Audio sample must be between 1 byte and 20 MiB")
     try:
-        result = await clone_voice(
-            audio_bytes=audio_bytes,
-            filename=file.filename or "sample.mp3",
-            voice_name=voice_name,
-        )
-    except httpx.HTTPStatusError as e:
-        detail = e.response.text
-        if e.response.status_code == 422:
-            raise HTTPException(
-                status_code=422,
-                detail="Voice cloning failed. ElevenLabs requires a Starter plan or above for Instant Voice Cloning.",
-            )
-        raise HTTPException(status_code=502, detail=f"ElevenLabs error: {detail}")
-
-    # Check if voice already exists (happens during free-tier fallback reuse)
-    profile = db.query(VoiceProfile).filter(VoiceProfile.elevenlabs_voice_id == result["voice_id"]).first()
-    if profile:
-        profile.name = voice_name
-        # Mark all others as inactive
-        db.query(VoiceProfile).filter(VoiceProfile.id != profile.id).update({"is_active": False})
+        result = await clone_voice(audio_bytes, file.filename or "sample.webm", label)
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(502, f"Voice provider rejected the sample (HTTP {exc.response.status_code})") from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, "Voice provider is unavailable") from exc
+    profile = db.query(VoiceProfile).filter_by(elevenlabs_voice_id=result["voice_id"]).first()
+    try:
+        if profile:
+            profile.name = label
+        else:
+            profile = VoiceProfile(name=label, elevenlabs_voice_id=result["voice_id"], is_active=False)
+            db.add(profile)
+        db.flush()
+        db.query(VoiceProfile).update({VoiceProfile.is_active: False})
         profile.is_active = True
         db.commit()
         db.refresh(profile)
-    else:
-        # Mark all existing as inactive
-        db.query(VoiceProfile).update({"is_active": False})
-        # Save new to DB
-        profile = VoiceProfile(
-            name=voice_name,
-            elevenlabs_voice_id=result["voice_id"],
-            is_active=True,
-        )
-        db.add(profile)
-        db.commit()
-        db.refresh(profile)
-
-    return {
-        "success": True,
-        "id": profile.id,
-        "voiceId": profile.elevenlabs_voice_id,
-        "name": profile.name,
-        "message": "Voice cloned successfully ✓",
-    }
+    except Exception:
+        db.rollback()
+        raise HTTPException(500, "Could not save voice profile")
+    return {"success": True, "id": profile.id, "name": profile.name, "isActive": True}
 
 
 @router.get("/voices")
 def list_voices(db: Session = Depends(get_db)):
-    """Returns all voice profiles stored in the database."""
-    profiles = db.query(VoiceProfile).order_by(VoiceProfile.created_at.desc()).all()
-    return [
-        {
-            "id": p.id,
-            "name": p.name,
-            "voiceId": p.elevenlabs_voice_id,
-            "isActive": p.is_active,
-            "createdAt": p.created_at.isoformat(),
-        }
-        for p in profiles
-    ]
+    return [{"id": p.id, "name": p.name, "isActive": p.is_active,
+             "createdAt": p.created_at.isoformat()} for p in db.query(VoiceProfile).order_by(VoiceProfile.created_at.desc()).all()]
 
-from fastapi.responses import StreamingResponse
-from services.elevenlabs_service import tts_stream
 
-@router.get("/voices/{id}/preview")
-async def preview_voice(id: int, db: Session = Depends(get_db)):
-    """Generates a short audio preview of the voice."""
-    profile = db.query(VoiceProfile).filter(VoiceProfile.id == id).first()
+@router.put("/voices/{profile_id}/activate")
+def activate_voice(profile_id: int, db: Session = Depends(get_db)):
+    profile = db.query(VoiceProfile).filter_by(id=profile_id).first()
     if not profile:
-        raise HTTPException(status_code=404, detail="Voice not found")
-        
-    text = f"Hi! I am {profile.name}, and I am ready to help you."
+        raise HTTPException(404, "Voice profile not found")
+    try:
+        db.query(VoiceProfile).update({VoiceProfile.is_active: False})
+        profile.is_active = True
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(500, "Could not activate voice")
+    return {"success": True, "id": profile.id, "name": profile.name, "isActive": True}
+
+
+@router.get("/voices/{profile_id}/preview")
+async def preview_voice(profile_id: int, db: Session = Depends(get_db)):
+    profile = db.query(VoiceProfile).filter_by(id=profile_id).first()
+    if not profile:
+        raise HTTPException(404, "Voice not found")
+    text = f"Hello, welcome to SmileCare. I am {profile.name}, and I am ready to help you today."
     return StreamingResponse(tts_stream(text, profile.elevenlabs_voice_id), media_type="audio/mpeg")
+
 
 @router.get("/active-voice")
 def get_active_voice(db: Session = Depends(get_db)):
-    """Returns the currently active voice profile."""
-    profile = db.query(VoiceProfile).filter(VoiceProfile.is_active == True).order_by(VoiceProfile.created_at.desc()).first()
-    if not profile:
-        return {"voice_id": None, "name": None}
-    return {"voice_id": profile.elevenlabs_voice_id, "name": profile.name}
+    profile = db.query(VoiceProfile).filter_by(is_active=True).order_by(VoiceProfile.created_at.desc()).first()
+    return {"name": profile.name if profile else None, "available": bool(profile)}
 
 
 @router.delete("/voices/{profile_id}")
 async def remove_voice(profile_id: int, db: Session = Depends(get_db)):
-    """Deletes a voice profile from the DB and from ElevenLabs."""
-    profile = db.query(VoiceProfile).filter(VoiceProfile.id == profile_id).first()
+    profile = db.query(VoiceProfile).filter_by(id=profile_id).first()
     if not profile:
-        raise HTTPException(status_code=404, detail="Voice profile not found.")
-
-    await delete_voice(profile.elevenlabs_voice_id)
+        raise HTTPException(404, "Voice profile not found")
+    if profile.is_active:
+        raise HTTPException(409, "Activate another voice before deleting the active voice")
+    try:
+        await delete_voice(profile.elevenlabs_voice_id)
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, "Voice provider could not delete the profile") from exc
     db.delete(profile)
     db.commit()
     return {"success": True, "message": f"Voice '{profile.name}' deleted."}

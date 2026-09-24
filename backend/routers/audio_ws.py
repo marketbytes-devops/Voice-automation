@@ -1,390 +1,325 @@
-"""
-routers/audio_ws.py – The heart of the voice receptionist.
-
-WebSocket endpoint: /ws/audio
-─────────────────────────────────────────────────────────────────────────────
-FLOW:
-  Browser ──[binary PCM]──► Backend ──► Deepgram (real-time STT)
-                                              │
-                                       Transcript events
-                                              │
-                                    if FINAL + state==LISTENING
-                                              │
-                                         OpenAI LLM
-                                              │
-                                          AI reply
-                                              │
-                                      ElevenLabs TTS
-                                              │
-                                    MP3 chunks (base64)
-                                              │
-  Browser ◄──[JSON tts_chunk]──────────── Backend
-
-STATE MACHINE:
-  idle → listening → thinking → speaking → listening (loop)
-  speaking → listening  (barge-in: user speaks while AI is talking)
-
-MESSAGES (browser → backend):
-  { type: "config",   voiceId: "..." }   – sent after voice clone
-  { type: "barge_in" }                   – user spoke during AI speech
-  { type: "stop" }                       – end session
-  <binary>                               – raw PCM audio frames
-
-MESSAGES (backend → browser):
-  { type: "state",      state: "listening|thinking|speaking" }
-  { type: "transcript", text: "...", isFinal: bool, role: "user" }
-  { type: "reply",      text: "...", role: "assistant" }
-  { type: "tts_start" }
-  { type: "tts_chunk",  data: "<base64 mp3>" }
-  { type: "tts_end" }
-  { type: "tts_cancelled" }
-  { type: "error",      message: "..." }
-"""
+"""Public voice session: English language selection then verified-language conversation."""
 import asyncio
 import base64
 import json
 import uuid
+import time
 from datetime import datetime
+from urllib.parse import urlencode
 
 import websockets
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from config import settings
 from database.connection import SessionLocal
-from database.models import CallLog
-from services.openai_service import build_db_context, get_ai_response
+from database.models import CallLog, LanguageSetting, VoiceProfile
+from security import supported_language_map
+from services.openai_service import build_db_context, get_ai_response, retrieve_knowledge
 from services.elevenlabs_service import tts_stream
 
 router = APIRouter(tags=["Audio WebSocket"])
-
-# Deepgram streaming URL for linear16 PCM at 16 kHz
-_DG_URL = (
-    "wss://api.deepgram.com/v1/listen"
-    "?encoding=linear16"
-    "&sample_rate=16000"
-    "&channels=1"
-    "&interim_results=true"
-    "&endpointing=1200"
-    "&utterance_end_ms=3000"
-    "&vad_events=true"
-    "&language=en-US"
-    "&model=nova-2"
-)
+# Per-process concurrent-session cap keyed only by the peer socket address;
+# forwarded headers are deliberately not trusted without a configured proxy chain.
+_sessions_by_ip: dict[str, int] = {}
+def _origin_allowed(origin: str | None, configured: str) -> bool:
+    allowed = {item.strip().rstrip("/") for item in configured.split(",") if item.strip()}
+    return bool(origin and origin.rstrip("/") in allowed)
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Helpers
-# ──────────────────────────────────────────────────────────────────────────────
+LANGUAGE_NAMES = {"en": "English", "ta": "Tamil", "zh": "Mandarin", "ms": "Malay"}
+LANGUAGE_GREETINGS = {
+    "en": "Thank you. How may I help you today?",
+    "ta": "நன்றி. இன்று நான் உங்களுக்கு எப்படி உதவலாம்?",
+    "zh": "谢谢您。今天我能为您做些什么？",
+    "ms": "Terima kasih. Bagaimana saya boleh membantu anda hari ini?",
+}
 
-async def _safe_send(ws: WebSocket, payload: dict):
-    """Send JSON without raising if the socket is already closed."""
+
+def _deepgram_url(language: str) -> str:
+    params = {"encoding": "linear16", "sample_rate": "16000", "channels": "1",
+              "interim_results": "true", "endpointing": "1200", "utterance_end_ms": "3000",
+              "vad_events": "true", "language": language, "model": "nova-2"}
+    return "wss://api.deepgram.com/v1/listen?" + urlencode(params)
+
+
+async def _send(ws, payload):
     try:
         await ws.send_json(payload)
     except Exception:
         pass
 
 
-async def _stream_tts(
-    ws: WebSocket,
-    text: str,
-    voice_id: str | None,
-    barge_in: asyncio.Event,
-):
-    """
-    Streams ElevenLabs TTS back to the browser as base64-encoded MP3 chunks.
-    Stops early if barge_in is set.
-    """
-    if not voice_id:
-        await _safe_send(ws, {"type": "error", "message": "No voice configured."})
-        return
-
+async def _speak(ws, text: str, voice_id: str):
+    await _send(ws, {"type": "tts_start"})
     try:
-        await _safe_send(ws, {"type": "tts_start"})
         async for chunk in tts_stream(text, voice_id):
-            if barge_in.is_set():
-                break
-            encoded = base64.b64encode(chunk).decode("utf-8")
-            await _safe_send(ws, {"type": "tts_chunk", "data": encoded})
+            await _send(ws, {"type": "tts_chunk", "data": base64.b64encode(chunk).decode("ascii")})
+        await _send(ws, {"type": "tts_end"})
+    except Exception:
+        await _send(ws, {"type": "error", "message": "Speech output is unavailable. You can still read the transcript or end the call."})
 
-        if barge_in.is_set():
-            await _safe_send(ws, {"type": "tts_cancelled"})
-        else:
-            await _safe_send(ws, {"type": "tts_end"})
-
-    except asyncio.CancelledError:
-        await _safe_send(ws, {"type": "tts_cancelled"})
-        raise
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# WebSocket Handler
-# ──────────────────────────────────────────────────────────────────────────────
 
 @router.websocket("/ws/audio")
-async def audio_websocket(ws: WebSocket, lang: str = "en-US"):
+async def audio_websocket(ws: WebSocket):
+    origin = ws.headers.get("origin")
+    if not _origin_allowed(origin, settings.ALLOWED_ORIGINS):
+        await ws.accept()
+        await _send(ws, {"type": "error", "message": "This browser origin is not allowed to start a call."})
+        await ws.close(code=1008, reason="Origin not allowed")
+        return
+
     await ws.accept()
-    
-    # Dynamically build Deepgram URL based on selected language
-    # Deepgram streaming currently does not support Tamil or Bahasa Malaysia.
-    # To prevent WebSocket 400 crashes, we force Deepgram to transcribe phonetically in English.
-    # We will pass the selected language to the AI so it knows what language to reply in.
-    
-    dg_url = (
-        "wss://api.deepgram.com/v1/listen"
-        "?encoding=linear16"
-        "&sample_rate=16000"
-        "&channels=1"
-        "&interim_results=true"
-        "&endpointing=4000"
-        "&utterance_end_ms=5000"
-        "&vad_events=true"
-        "&language=en-US"
-        "&model=nova-2"
-        "&keywords=Akshay:3"
-        "&keywords=SmileCare:3"
-    )
+    client_ip = ws.client.host if ws.client else "unknown"
+    current_sessions = _sessions_by_ip.get(client_ip, 0)
+    if current_sessions >= max(1, settings.MAX_CONCURRENT_SESSIONS_PER_IP):
+        await _send(ws, {"type": "error", "message": "Too many active calls from this network. End another call or try again shortly."})
+        await ws.close(code=1013, reason="Concurrent call limit")
+        return
+    _sessions_by_ip[client_ip] = current_sessions + 1
+    session_released = False
 
-    # ── Session state ──────────────────────────────────────────────────────────
-    session_id          = str(uuid.uuid4())
-    voice_id: str | None = None
-    state               = "idle"         # idle | listening | thinking | speaking
-    conversation_history: list           = []
-    transcript_log: list                 = []   # for DB call log
+    def release_session():
+        nonlocal session_released
+        if not session_released:
+            remaining = _sessions_by_ip.get(client_ip, 1) - 1
+            if remaining > 0:
+                _sessions_by_ip[client_ip] = remaining
+            else:
+                _sessions_by_ip.pop(client_ip, None)
+            session_released = True
 
-    # ── Async primitives ───────────────────────────────────────────────────────
-    audio_q      = asyncio.Queue(maxsize=200)   # PCM chunks → Deepgram
-    transcript_q = asyncio.Queue()              # Deepgram events → conversation handler
-    stop_evt     = asyncio.Event()
-    barge_in_evt = asyncio.Event()
-
-    # ── Load clinic data once (sync DB call) ───────────────────────────────────
+    deadline = time.monotonic() + max(60, settings.MAX_CALL_DURATION_SECONDS)
+    if not settings.DEEPGRAM_API_KEY or not settings.ELEVENLABS_API_KEY or not settings.OPENAI_API_KEY:
+        await _send(ws, {"type": "error", "message": "A required speech, voice, or assistant provider is not configured. Please contact the clinic."})
+        await ws.close(code=1011, reason="Required provider unavailable")
+        release_session()
+        return
+    session_id = str(uuid.uuid4())
+    stop_evt = asyncio.Event()
+    reconnect_evt = asyncio.Event()
+    audio_q = asyncio.Queue(maxsize=max(1, settings.MAX_AUDIO_QUEUE_FRAMES))
+    transcript_q = asyncio.Queue(maxsize=max(1, settings.MAX_TRANSCRIPT_QUEUE_ITEMS))
+    transcript_log = []
+    history = []
+    active_language = {"code": "en", "dg": "en-US"}
+    phase = {"value": "language_select"}
+    voice = {"id": None, "name": None}
     db = SessionLocal()
     try:
-        db_context = build_db_context(db)
-        db_context["target_language"] = lang
+        enabled_rows = db.query(LanguageSetting).filter_by(enabled=True).all()
+        dg_languages = supported_language_map()
+        tts_languages = {x.strip().lower() for x in settings.TESTED_TTS_LANGUAGES.split(",") if x.strip()}
+        if "en" not in dg_languages or "en" not in tts_languages:
+            await _send(ws, {"type": "error", "message": "English recognition and speech output are required for spoken language selection, but are not marked tested."})
+            await ws.close(code=1011, reason="Required language providers unavailable")
+            release_session()
+            return
+        choices = {row.code: row for row in enabled_rows
+                   if row.code in dg_languages and row.code in tts_languages}
+        profile = db.query(VoiceProfile).filter_by(is_active=True).order_by(VoiceProfile.created_at.desc()).first()
+        context = build_db_context(db)
+        if not profile:
+            await _send(ws, {"type": "error", "message": "SmileCare voice service is not configured. Please contact the clinic."})
+            await ws.close(code=1011, reason="Voice service unavailable")
+            release_session()
+            return
+        voice.update(id=profile.elevenlabs_voice_id, name=profile.name)
+        context["target_language"] = "English"
+    except Exception:
+        release_session()
+        raise
     finally:
         db.close()
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # Task 1: Deepgram bridge
-    #   - Reads PCM from audio_q, forwards to Deepgram WS
-    #   - Receives transcript events, puts them on transcript_q
-    # ══════════════════════════════════════════════════════════════════════════
+    if not choices:
+        await _send(ws, {"type": "error", "message": "No voice languages are enabled and verified. Please contact the clinic."})
+        await ws.close(code=1011, reason="No enabled voice languages")
+        release_session()
+        return
+    selectable = [LANGUAGE_NAMES.get(code, code) for code in choices]
+    prompt = "Welcome to SmileCare. Please say your preferred language in English: " + ", ".join(selectable) + "."
+    await _send(ws, {"type": "state", "state": "speaking"})
+    try:
+        await asyncio.wait_for(_speak(ws, prompt, voice["id"]), timeout=max(0.1, deadline - time.monotonic()))
+    except asyncio.TimeoutError:
+        await _send(ws, {"type": "error", "message": "This call reached its maximum duration. Please start a new call if you need more help."})
+        await ws.close(code=1008, reason="Maximum call duration reached")
+        release_session()
+        return
+    await _send(ws, {"type": "state", "state": "language_select"})
+
     async def deepgram_bridge():
-        headers = {"Authorization": f"Token {settings.DEEPGRAM_API_KEY}"}
-        try:
-            async with websockets.connect(dg_url, extra_headers=headers) as dg:
-
-                async def _send():
-                    while not stop_evt.is_set():
-                        try:
-                            chunk = await asyncio.wait_for(audio_q.get(), timeout=0.5)
-                        except asyncio.TimeoutError:
-                            continue
-                        if chunk is None:
-                            break
-                        try:
+        while not stop_evt.is_set():
+            dg_url = _deepgram_url(active_language["dg"])
+            try:
+                async with websockets.connect(dg_url, extra_headers={"Authorization": f"Token {settings.DEEPGRAM_API_KEY}"}) as dg:
+                    async def send_audio():
+                        while not stop_evt.is_set() and not reconnect_evt.is_set():
+                            try:
+                                chunk = await asyncio.wait_for(audio_q.get(), timeout=0.25)
+                            except asyncio.TimeoutError:
+                                continue
+                            if chunk is None:
+                                return
                             await dg.send(chunk)
-                        except Exception:
-                            break
-
-                async def _recv():
-                    try:
+                    async def receive_transcripts():
                         async for raw in dg:
-                            if stop_evt.is_set():
+                            if stop_evt.is_set() or reconnect_evt.is_set():
                                 break
                             try:
-                                msg  = json.loads(raw)
+                                msg = json.loads(raw)
                                 if msg.get("type") != "Results":
                                     continue
-                                alt  = msg.get("channel", {}).get("alternatives", [{}])[0]
+                                alt = msg.get("channel", {}).get("alternatives", [{}])[0]
                                 text = alt.get("transcript", "").strip()
-                                if not text:
-                                    continue
-                                is_final = msg.get("is_final", False) or msg.get("speech_final", False)
-                                await transcript_q.put({"text": text, "isFinal": is_final})
-                            except Exception:
-                                pass
-                    except Exception:
-                        pass
+                                if text:
+                                    try:
+                                        transcript_q.put_nowait({"text": text[:2000], "isFinal": bool(msg.get("is_final") or msg.get("speech_final"))})
+                                    except asyncio.QueueFull:
+                                        await _send(ws, {"type": "error", "message": "Transcript processing is overloaded. Please retry the call."})
+                                        stop_evt.set()
+                                        await ws.close(code=1013, reason="Transcript queue full")
+                                        return
+                            except (ValueError, IndexError, TypeError):
+                                continue
+                    send_task = asyncio.create_task(send_audio())
+                    recv_task = asyncio.create_task(receive_transcripts())
+                    done, pending = await asyncio.wait({send_task, recv_task}, return_when=asyncio.FIRST_COMPLETED)
+                    for task in pending:
+                        task.cancel()
+                    await asyncio.gather(*pending, return_exceptions=True)
+            except Exception as exc:
+                print(f"[deepgram] Connection unavailable ({type(exc).__name__})")
+                await _send(ws, {"type": "error", "message": "Speech recognition is unavailable. Please retry in English or end the call."})
+                await asyncio.sleep(2)
+            if reconnect_evt.is_set():
+                reconnect_evt.clear()
 
-                await asyncio.gather(_send(), _recv())
-        except Exception as e:
-            print(f"[deepgram] Connection error: {e}")
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # Task 2: Conversation handler
-    #   - Consumes transcript events
-    #   - On final transcript (while LISTENING): calls OpenAI → ElevenLabs
-    #   - On any transcript (while SPEAKING): triggers barge-in
-    # ══════════════════════════════════════════════════════════════════════════
-    async def conversation_handler():
-        nonlocal state, voice_id
-
-        current_tts: asyncio.Task | None = None
-
+    async def handle_transcripts():
         while not stop_evt.is_set():
-            # ── Wait for next transcript event ─────────────────────────────────
             try:
-                event = await asyncio.wait_for(transcript_q.get(), timeout=0.3)
+                event = await asyncio.wait_for(transcript_q.get(), timeout=0.4)
             except asyncio.TimeoutError:
                 continue
-
-            text     = event["text"]
-            is_final = event["isFinal"]
-
-            # Forward transcript to browser (both interim and final)
-            await _safe_send(ws, {
-                "type":    "transcript",
-                "text":    text,
-                "isFinal": is_final,
-                "role":    "user",
-            })
-
-            # ── Barge-in: user spoke while AI was speaking ─────────────────────
-            if state == "speaking" and text:
-                barge_in_evt.set()
-                if current_tts and not current_tts.done():
-                    current_tts.cancel()
+            text, final = event["text"], event["isFinal"]
+            await _send(ws, {"type": "transcript", "text": text, "isFinal": final, "role": "user"})
+            if not final:
+                continue
+            if len(transcript_log) >= max(1, settings.MAX_TRANSCRIPT_ENTRIES):
+                await _send(ws, {"type": "error", "message": "This call reached its transcript limit. Please end the call and contact the clinic if you need more help."})
+                stop_evt.set()
+                await ws.close(code=1008, reason="Transcript limit reached")
+                break
+            transcript_log.append({"role": "user", "text": text[:2000], "ts": datetime.utcnow().isoformat()})
+            if phase["value"] == "language_select":
+                normalized = " ".join(text.lower().strip().split())
+                aliases = {"english": "en", "tamil": "ta", "mandarin": "zh", "chinese": "zh", "malay": "ms"}
+                code = aliases.get(normalized)
+                if not code or code not in choices:
+                    names = ", ".join(selectable)
+                    retry_text = f"Sorry, I didn't catch that. Please say one of the enabled languages in English: {names}."
+                    await _send(ws, {"type": "state", "state": "speaking"})
+                    await _send(ws, {"type": "reply", "text": retry_text, "role": "assistant"})
+                    await _speak(ws, retry_text, voice["id"])
+                    await _send(ws, {"type": "state", "state": "language_select"})
+                    continue
+                active_language.update(code=code, dg=dg_languages[code])
+                phase["value"] = "conversation"
+                while not audio_q.empty():
                     try:
-                        await current_tts
-                    except (asyncio.CancelledError, Exception):
-                        pass
-                state = "listening"
-                await _safe_send(ws, {"type": "state", "state": "listening"})
+                        audio_q.get_nowait()
+                    except asyncio.QueueEmpty:
+                        break
+                while not transcript_q.empty():
+                    try:
+                        transcript_q.get_nowait()
+                    except asyncio.QueueEmpty:
+                        break
+                reconnect_evt.set()
+                context["target_language"] = LANGUAGE_NAMES.get(code, code)
+                await _send(ws, {"type": "language", "code": code, "name": LANGUAGE_NAMES.get(code, code)})
+                await _send(ws, {"type": "state", "state": "speaking"})
+                greeting = LANGUAGE_GREETINGS.get(code, LANGUAGE_GREETINGS["en"])
+                await _send(ws, {"type": "reply", "text": greeting, "role": "assistant"})
+                await _speak(ws, greeting, voice["id"])
+                await _send(ws, {"type": "state", "state": "listening"})
                 continue
-
-            # ── Process final transcript (only when LISTENING) ─────────────────
-            if not (is_final and state == "listening" and text):
-                continue
-
-            # Save to transcript log
-            transcript_log.append({"role": "user", "text": text, "ts": datetime.utcnow().isoformat()})
-
-            # Transition: listening → thinking
-            state = "thinking"
-            await _safe_send(ws, {"type": "state", "state": "thinking"})
-
+            await _send(ws, {"type": "state", "state": "thinking"})
+            session_db = SessionLocal()
             try:
-                res_data = await get_ai_response(text, conversation_history, db_context)
-                if isinstance(res_data, dict):
-                    reply = res_data.get("reply", "")
-                    wa_msg = res_data.get("whatsapp_message")
-                else:
-                    reply = res_data
-                    wa_msg = None
-            except Exception as e:
-                print(f"[openai] Error: {e}")
-                await _safe_send(ws, {"type": "error", "message": "Sorry, I had trouble processing that."})
-                state = "listening"
-                await _safe_send(ws, {"type": "state", "state": "listening"})
-                continue
-
-            # Update conversation history
-            conversation_history.append({"role": "user",      "content": text})
-            conversation_history.append({"role": "assistant", "content": reply})
-            transcript_log.append({"role": "assistant", "text": reply, "ts": datetime.utcnow().isoformat()})
-
-            # Send reply text to browser (for transcript display)
-            await _safe_send(ws, {"type": "reply", "text": reply, "role": "assistant"})
-            
-            # Send mock WhatsApp message if generated
-            if wa_msg:
-                await _safe_send(ws, {"type": "whatsapp", "message": wa_msg})
-
-            # Transition: thinking → speaking
-            state = "speaking"
-            await _safe_send(ws, {"type": "state", "state": "speaking"})
-            barge_in_evt.clear()
-
-            # Stream TTS
-            current_tts = asyncio.create_task(
-                _stream_tts(ws, reply, voice_id, barge_in_evt)
-            )
+                knowledge = retrieve_knowledge(session_db, text)
+            finally:
+                session_db.close()
+            turn_context = {**context, "retrieved_knowledge": knowledge}
             try:
-                await current_tts
-            except (asyncio.CancelledError, Exception):
-                pass
+                result = await get_ai_response(text, history, turn_context)
+                reply = result.get("reply", "") if isinstance(result, dict) else str(result)
+            except Exception as exc:
+                print(f"[openai] Request failed ({type(exc).__name__})")
+                reply = "I'm sorry, I couldn't process that just now. Please repeat your question or contact the clinic."
+                await _send(ws, {"type": "error", "message": "The assistant service is temporarily unavailable."})
+            history.extend([{"role": "user", "content": text[:2000]}, {"role": "assistant", "content": reply[:2000]}])
+            del history[:-10]
+            if len(transcript_log) < max(1, settings.MAX_TRANSCRIPT_ENTRIES):
+                transcript_log.append({"role": "assistant", "text": reply[:2000], "ts": datetime.utcnow().isoformat()})
+            await _send(ws, {"type": "reply", "text": reply, "role": "assistant"})
+            await _send(ws, {"type": "state", "state": "speaking"})
+            await _speak(ws, reply, voice["id"])
+            await _send(ws, {"type": "state", "state": "listening"})
 
-            # Transition back: speaking → listening (unless barge-in redirected us)
-            if not barge_in_evt.is_set():
-                state = "listening"
-                await _safe_send(ws, {"type": "state", "state": "listening"})
-
-    # ── Spawn background tasks ─────────────────────────────────────────────────
-    tasks = [
-        asyncio.create_task(deepgram_bridge(),      name="deepgram"),
-        asyncio.create_task(conversation_handler(), name="conversation"),
-    ]
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # Main receive loop – reads messages from the browser
-    # ══════════════════════════════════════════════════════════════════════════
+    # Discard microphone frames collected while the initial spoken prompt played.
+    while not audio_q.empty():
+        try:
+            audio_q.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+    tasks = [asyncio.create_task(deepgram_bridge()), asyncio.create_task(handle_transcripts())]
     try:
         while True:
-            try:
-                data = await ws.receive()
-            except (WebSocketDisconnect, RuntimeError):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                await _send(ws, {"type": "error", "message": "This call reached its maximum duration. Please start a new call if you need more help."})
+                await ws.close(code=1008, reason="Maximum call duration reached")
                 break
-
-            # Binary = raw PCM audio from mic
-            if "bytes" in data and data["bytes"]:
+            try:
+                data = await asyncio.wait_for(ws.receive(), timeout=remaining)
+            except asyncio.TimeoutError:
+                await _send(ws, {"type": "error", "message": "This call reached its maximum duration. Please start a new call if you need more help."})
+                await ws.close(code=1008, reason="Maximum call duration reached")
+                break
+            if data.get("bytes"):
+                if len(data["bytes"]) > max(1024, settings.MAX_AUDIO_FRAME_BYTES):
+                    await _send(ws, {"type": "error", "message": "An audio frame exceeded the allowed size. Please retry the call."})
+                    await ws.close(code=1009, reason="Audio frame too large")
+                    break
                 try:
                     audio_q.put_nowait(data["bytes"])
                 except asyncio.QueueFull:
-                    pass   # drop frame – backpressure protection
-
-            # Text = control messages
-            elif "text" in data and data["text"]:
+                    await _send(ws, {"type": "error", "message": "Audio is arriving faster than it can be processed. Please retry the call."})
+                    await ws.close(code=1013, reason="Audio queue full")
+                    break
+            elif data.get("text"):
                 try:
                     msg = json.loads(data["text"])
-                except json.JSONDecodeError:
+                except ValueError:
                     continue
-
-                mtype = msg.get("type")
-
-                if mtype == "config":
-                    # Browser sends this after voice clone succeeds
-                    voice_id = msg.get("voiceId")
-                    state    = "listening"
-                    await _safe_send(ws, {"type": "state", "state": "listening"})
-
-                elif mtype == "barge_in":
-                    # VAD detected speech during AI playback
-                    barge_in_evt.set()
-                    state = "listening"
-                    await _safe_send(ws, {"type": "state", "state": "listening"})
-
-                elif mtype == "stop":
+                if msg.get("type") == "stop":
                     break
-
+    except (WebSocketDisconnect, RuntimeError):
+        pass
     finally:
-        # ── Cleanup ────────────────────────────────────────────────────────────
         stop_evt.set()
-        try:
-            audio_q.put_nowait(None)   # signal Deepgram sender to exit
-        except asyncio.QueueFull:
-            pass
-
-        for t in tasks:
-            t.cancel()
+        release_session()
+        for task in tasks:
+            task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Save call log to DB
-        db = SessionLocal()
+        call_db = SessionLocal()
         try:
-            log = CallLog(
-                session_id = session_id,
-                voice_name = voice_id or "none",
-                transcript = transcript_log,
-                started_at = datetime.utcnow(),
-                ended_at   = datetime.utcnow(),
-            )
-            db.add(log)
-            db.commit()
-        except Exception as e:
-            print(f"[calllog] Failed to save: {e}")
+            call_db.add(CallLog(session_id=session_id, voice_name=voice["name"], transcript=transcript_log,
+                                started_at=datetime.utcnow(), ended_at=datetime.utcnow()))
+            call_db.commit()
+        except Exception as exc:
+            call_db.rollback()
+            print(f"[calllog] Save failed ({type(exc).__name__})")
         finally:
-            db.close()
-
-        print(f"[ws] Session {session_id} ended. Turns: {len(transcript_log)}")
+            call_db.close()
