@@ -16,6 +16,8 @@ services:
     build: ./backend
     container_name: voice_backend
     restart: always
+    environment:
+      - PYTHONUNBUFFERED=1
     env_file:
       - .env
     ports:
