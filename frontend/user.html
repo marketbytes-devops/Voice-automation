@@ -716,7 +716,7 @@ const WS_URL  = `ws://${location.host}/ws/audio`;
 const API_URL = `http://${location.host}`;
 
 // Volume threshold for barge-in detection (0–255)
-const VAD_THRESHOLD = 150;
+const VAD_THRESHOLD = 40;
 // Check VAD every N ms during speaking
 const VAD_INTERVAL_MS = 80;
 
@@ -819,7 +819,10 @@ function setConnection(live) {
    MIC + AUDIO CAPTURE (AudioWorklet → PCM → WebSocket)
 ───────────────────────────────────────────────────────────────────────────── */
 async function startMic() {
-  micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  micStream = await navigator.mediaDevices.getUserMedia({ 
+    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, 
+    video: false 
+  });
 
   // Create AudioContext at 16 kHz (Deepgram linear16 input)
   audioCtx = new AudioContext({ sampleRate: 16000 });
@@ -838,7 +841,7 @@ async function startMic() {
 
   // Forward PCM chunks to WebSocket
   workletNode.port.onmessage = ({ data: pcmBuffer }) => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    if (ws && ws.readyState === WebSocket.OPEN && appState !== 'speaking') {
       ws.send(pcmBuffer);
     }
   };

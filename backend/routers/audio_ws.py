@@ -43,8 +43,8 @@ LANGUAGE_ERROR_FALLBACKS = {
 
 def _deepgram_url(language: str, keywords: list[str] | None = None) -> str:
     params = {"encoding": "linear16", "sample_rate": "16000", "channels": "1",
-              "interim_results": "true", "endpointing": "1200", "utterance_end_ms": "3000",
-              "vad_events": "true", "language": language}
+              "interim_results": "true", "endpointing": "2000", "utterance_end_ms": "4000",
+              "smart_format": "true", "vad_events": "true", "language": language}
     # Use nova-2 for English and nova-3 for other languages
     if language.startswith("en"):
         params["model"] = "nova-2"
@@ -63,12 +63,16 @@ async def _send(ws, payload):
         pass
 
 
-async def _speak(ws, text: str, voice_id: str):
+async def _speak(ws, text: str, voice_id: str, barge_in_evt: asyncio.Event = None):
     await _send(ws, {"type": "tts_start"})
     try:
         async for chunk in tts_stream(text, voice_id):
+            if barge_in_evt and barge_in_evt.is_set():
+                await _send(ws, {"type": "tts_cancelled"})
+                break
             await _send(ws, {"type": "tts_chunk", "data": base64.b64encode(chunk).decode("ascii")})
-        await _send(ws, {"type": "tts_end"})
+        else:
+            await _send(ws, {"type": "tts_end"})
     except Exception:
         await _send(ws, {"type": "error", "message": "Speech output is unavailable. You can still read the transcript or end the call."})
 
@@ -113,6 +117,7 @@ async def audio_websocket(ws: WebSocket):
     reconnect_evt = asyncio.Event()
     ready_evt = asyncio.Event()
     ready_evt.set()  # initially ready
+    barge_in_evt = asyncio.Event()
     audio_q = asyncio.Queue(maxsize=max(1, settings.MAX_AUDIO_QUEUE_FRAMES))
     transcript_q = asyncio.Queue(maxsize=max(1, settings.MAX_TRANSCRIPT_QUEUE_ITEMS))
     transcript_log = []
@@ -156,7 +161,8 @@ async def audio_websocket(ws: WebSocket):
     prompt = "Welcome to SmileCare. ... Please say your preferred language: ... " + ". ... ".join(selectable) + "."
     await _send(ws, {"type": "state", "state": "speaking"})
     try:
-        await asyncio.wait_for(_speak(ws, prompt, voice["id"]), timeout=max(0.1, deadline - time.monotonic()))
+        barge_in_evt.clear()
+        await asyncio.wait_for(_speak(ws, prompt, voice["id"], barge_in_evt), timeout=max(0.1, deadline - time.monotonic()))
     except asyncio.TimeoutError:
         await _send(ws, {"type": "error", "message": "This call reached its maximum duration. Please start a new call if you need more help."})
         await ws.close(code=1008, reason="Maximum call duration reached")
@@ -275,7 +281,8 @@ async def audio_websocket(ws: WebSocket):
                     retry_text = f"Sorry, I didn't catch that. ... Please say your preferred language: ... {names}."
                     await _send(ws, {"type": "state", "state": "speaking"})
                     await _send(ws, {"type": "reply", "text": retry_text, "role": "assistant"})
-                    await _speak(ws, retry_text, voice["id"])
+                    barge_in_evt.clear()
+                    await _speak(ws, retry_text, voice["id"], barge_in_evt)
                     await _send(ws, {"type": "state", "state": "language_select"})
                     continue
                 active_language.update(code=code, dg=dg_languages[code])
@@ -298,7 +305,8 @@ async def audio_websocket(ws: WebSocket):
                 await _send(ws, {"type": "state", "state": "speaking"})
                 greeting = LANGUAGE_GREETINGS.get(code, LANGUAGE_GREETINGS["en"])
                 await _send(ws, {"type": "reply", "text": greeting, "role": "assistant"})
-                await _speak(ws, greeting, voice["id"])
+                barge_in_evt.clear()
+                await _speak(ws, greeting, voice["id"], barge_in_evt)
                 await _send(ws, {"type": "state", "state": "listening"})
                 # Now allow the bridge to connect with the new language
                 ready_evt.set()
@@ -323,7 +331,8 @@ async def audio_websocket(ws: WebSocket):
                 transcript_log.append({"role": "assistant", "text": reply[:2000], "ts": datetime.utcnow().isoformat()})
             await _send(ws, {"type": "reply", "text": reply, "role": "assistant"})
             await _send(ws, {"type": "state", "state": "speaking"})
-            await _speak(ws, reply, voice["id"])
+            barge_in_evt.clear()
+            await _speak(ws, reply, voice["id"], barge_in_evt)
             await _send(ws, {"type": "state", "state": "listening"})
 
     # Discard microphone frames collected while the initial spoken prompt played.
@@ -363,6 +372,8 @@ async def audio_websocket(ws: WebSocket):
                     continue
                 if msg.get("type") == "stop":
                     break
+                elif msg.get("type") == "barge_in":
+                    barge_in_evt.set()
     except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
