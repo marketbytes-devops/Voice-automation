@@ -19,7 +19,8 @@ async def clone_voice_endpoint(file: UploadFile = File(...), voice_name: str = F
     label = voice_name.strip()
     if not label or len(label) > 100:
         raise HTTPException(400, "Voice label must contain 1–100 characters")
-    if file.content_type not in ALLOWED_AUDIO:
+    base_content_type = file.content_type.split(';')[0].strip() if file.content_type else ""
+    if base_content_type not in ALLOWED_AUDIO:
         raise HTTPException(415, "Unsupported audio type. Upload MP3, WAV, M4A, OGG, or WebM.")
     audio_bytes = await file.read(MAX_AUDIO_BYTES + 1)
     if not audio_bytes or len(audio_bytes) > MAX_AUDIO_BYTES:

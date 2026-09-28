@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Header } from '../components/Header';
-import { Mic, Upload, Trash2, Play, Square, FileText, Languages, KeyRound, CheckCircle2 } from 'lucide-react';
+import { Mic, Upload, Trash2, Play, Pause, Square, FileText, Languages, KeyRound, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -18,10 +18,13 @@ export function AdminPage() {
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
   const [previewing, setPreviewing] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [documentFile, setDocumentFile] = useState(null);
   const mediaRecorder = useRef(null);
   const audioChunks = useRef([]);
   const previewUrl = useRef(null);
+  const audioPlayer = useRef(null);
+  const activeVoiceId = useRef(null);
 
   const adminFetch = useCallback(async (path, options = {}) => {
     const response = await fetch(`${API_URL}${path}`, {
@@ -114,22 +117,56 @@ export function AdminPage() {
     catch (error) { toast.error(error.message); }
   };
 
-  const previewVoice = async (voice) => {
-    if (previewing) return;
+  const toggleVoice = async (voice) => {
+    if (activeVoiceId.current === voice.id) {
+      if (audioPlayer.current) {
+        if (isPlaying) {
+          audioPlayer.current.pause();
+          setIsPlaying(false);
+        } else {
+          audioPlayer.current.play();
+          setIsPlaying(true);
+        }
+      }
+      return;
+    }
+
+    if (audioPlayer.current) {
+      audioPlayer.current.pause();
+      audioPlayer.current = null;
+    }
+    
+    activeVoiceId.current = voice.id;
     setPreviewing(voice.id);
+    setIsPlaying(true);
+
     try {
       const response = await fetch(`${API_URL}/api/voices/${voice.id}/preview`, { headers: { 'X-Admin-Key': adminKey } });
       if (!response.ok) throw new Error('Voice preview failed');
       const blob = await response.blob();
+      
+      if (activeVoiceId.current !== voice.id) return;
+      
       if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
       previewUrl.current = URL.createObjectURL(blob);
       const audio = new Audio(previewUrl.current);
-      audio.onended = () => setPreviewing(null);
-      audio.onerror = () => setPreviewing(null);
+      audioPlayer.current = audio;
+      
+      audio.onended = () => {
+        if (activeVoiceId.current === voice.id) { setIsPlaying(false); setPreviewing(null); activeVoiceId.current = null; }
+      };
+      audio.onerror = () => {
+        if (activeVoiceId.current === voice.id) { setIsPlaying(false); setPreviewing(null); activeVoiceId.current = null; }
+      };
+      
       await audio.play();
     } catch (error) { 
-      toast.error(error.message || 'Preview playback failed');
-      setPreviewing(null);
+      if (activeVoiceId.current === voice.id) {
+        toast.error(error.message || 'Preview playback failed');
+        setPreviewing(null);
+        setIsPlaying(false);
+        activeVoiceId.current = null;
+      }
     }
   };
 
@@ -198,7 +235,7 @@ export function AdminPage() {
             <button onClick={cloneVoice} disabled={!selectedFile || !voiceName.trim() || busy} className="mt-3 w-full rounded-xl py-3 bg-blue-600 disabled:opacity-40 text-sm font-semibold">{busy ? 'Processing sample…' : 'Upload and activate voice'}</button>
             <div className="mt-5 space-y-2 max-h-64 overflow-y-auto">{voices.map((voice) => <div key={voice.id} className="flex items-center gap-2 p-3 rounded-xl bg-black/20 border border-white/5">
               <div className="flex-1 min-w-0"><p className="truncate text-sm">{voice.name} {voice.isActive && <span className="text-emerald-400">· Active</span>}</p><p className="text-xs text-slate-500">{voice.createdAt ? new Date(voice.createdAt).toLocaleDateString() : ''}</p></div>
-              <button title="Preview voice" onClick={() => previewVoice(voice)} disabled={!!previewing} className={`p-2 ${previewing === voice.id ? 'text-blue-500 animate-pulse' : 'text-blue-300 disabled:opacity-50'}`}><Play size={15} /></button>
+              <button title="Preview voice" onClick={() => toggleVoice(voice)} className={`p-2 ${(previewing === voice.id && isPlaying) ? 'text-blue-500 animate-pulse' : 'text-blue-300 hover:text-blue-400'}`}>{(previewing === voice.id && isPlaying) ? <Pause size={15} /> : <Play size={15} />}</button>
               {!voice.isActive && <button onClick={() => activateVoice(voice.id)} className="p-2 text-emerald-300" title="Activate voice"><CheckCircle2 size={16} /></button>}
               <button onClick={() => deleteVoice(voice)} className="p-2 text-rose-300" title="Delete voice"><Trash2 size={15} /></button>
             </div>)}</div>
