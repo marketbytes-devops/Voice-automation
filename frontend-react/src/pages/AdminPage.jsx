@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Header } from '../components/Header';
+import { VoiceRecorder } from '../components/VoiceRecorder';
+import { DocumentUploader } from '../components/DocumentUploader';
 import { Mic, Upload, Trash2, Play, Pause, Square, FileText, Languages, KeyRound, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -15,13 +17,9 @@ export function AdminPage() {
   const [documents, setDocuments] = useState([]);
   const [voiceName, setVoiceName] = useState('SmileCare Receptionist');
   const [selectedFile, setSelectedFile] = useState(null);
-  const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
   const [previewing, setPreviewing] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [documentFile, setDocumentFile] = useState(null);
-  const mediaRecorder = useRef(null);
-  const audioChunks = useRef([]);
   const previewUrl = useRef(null);
   const audioPlayer = useRef(null);
   const activeVoiceId = useRef(null);
@@ -170,37 +168,18 @@ export function AdminPage() {
     }
   };
 
-  const toggleRecording = async () => {
-    if (recording) { mediaRecorder.current?.stop(); return; }
-    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
-      toast.error('Audio recording is not supported in this browser. Use file upload instead.'); return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      mediaRecorder.current = recorder;
-      audioChunks.current = [];
-      recorder.ondataavailable = (event) => { if (event.data.size) audioChunks.current.push(event.data); };
-      recorder.onerror = () => { stream.getTracks().forEach((track) => track.stop()); setRecording(false); toast.error('Recording failed'); };
-      recorder.onstop = () => {
-        stream.getTracks().forEach((track) => track.stop());
-        const blob = new Blob(audioChunks.current, { type: recorder.mimeType || 'audio/webm' });
-        setSelectedFile(new File([blob], 'recorded_voice.webm', { type: blob.type }));
-        setRecording(false);
-        toast.success('Recording ready to upload');
-      };
-      recorder.start(); setRecording(true);
-      window.setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 30000);
-    } catch { toast.error('Microphone unavailable or permission denied'); }
-  };
 
-  const uploadDocument = async () => {
-    if (!documentFile) return;
-    const form = new FormData(); form.append('file', documentFile);
+
+  const uploadDocument = async (file) => {
+    const form = new FormData(); form.append('file', file);
     try {
       await adminFetch('/api/admin/knowledge', { method: 'POST', body: form });
-      setDocumentFile(null); await refreshAll(); toast.success('Document extracted and added to assistant references');
-    } catch (error) { toast.error(error.message); }
+      await refreshAll();
+      toast.success('Document extracted and added to assistant references');
+    } catch (error) {
+      toast.error(error.message);
+      throw error;
+    }
   };
 
   const removeDocument = async (document) => {
@@ -230,7 +209,7 @@ export function AdminPage() {
           <section className="rounded-3xl p-6 bg-slate-900/60 border border-white/10">
             <div className="flex items-center gap-3 mb-5"><Mic className="text-blue-400" /><div><h2 className="font-semibold">Voice library</h2><p className="text-xs text-slate-400">Upload or record an approved sample; max 20 MiB / 30 seconds.</p></div></div>
             <label className="block border border-dashed border-white/20 rounded-xl p-4 text-sm cursor-pointer"><Upload className="inline mr-2" size={16} />{selectedFile?.name || 'Choose audio sample'}<input type="file" accept="audio/*" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} /></label>
-            <button onClick={toggleRecording} className="mt-3 px-4 py-2 rounded-lg bg-white/10 text-sm">{recording ? <><Square size={14} className="inline mr-2" />Stop recording</> : <><Mic size={14} className="inline mr-2" />Record (30 sec max)</>}</button>
+            <VoiceRecorder onSave={setSelectedFile} maxDuration={30} />
             <input aria-label="Voice label" maxLength={100} value={voiceName} onChange={(e) => setVoiceName(e.target.value)} placeholder="Voice label" className="w-full mt-4 bg-black/40 border border-white/10 rounded-xl p-3 text-sm" />
             <button onClick={cloneVoice} disabled={!selectedFile || !voiceName.trim() || busy} className="mt-3 w-full rounded-xl py-3 bg-blue-600 disabled:opacity-40 text-sm font-semibold">{busy ? 'Processing sample…' : 'Upload and activate voice'}</button>
             <div className="mt-5 space-y-2 max-h-64 overflow-y-auto">{voices.map((voice) => <div key={voice.id} className="flex items-center gap-2 p-3 rounded-xl bg-black/20 border border-white/5">
@@ -252,7 +231,7 @@ export function AdminPage() {
 
           <section className="rounded-3xl p-6 bg-slate-900/60 border border-white/10 lg:col-span-2">
             <div className="flex items-center gap-3 mb-4"><FileText className="text-indigo-300" /><div><h2 className="font-semibold">Clinic knowledge documents</h2><p className="text-xs text-slate-400">UTF-8 TXT/Markdown, text-based PDF, or DOCX · max 2 MiB each. Scanned PDFs are unsupported.</p></div></div>
-            <div className="flex flex-col sm:flex-row gap-3"><input type="file" accept=".txt,.md,.pdf,.docx" onChange={(e) => setDocumentFile(e.target.files?.[0] || null)} className="flex-1 text-sm" /><button disabled={!documentFile} onClick={uploadDocument} className="px-4 py-2 rounded-xl bg-indigo-600 disabled:opacity-40 text-sm">Upload and extract</button></div>
+            <DocumentUploader onUpload={uploadDocument} />
             <div className="mt-4 space-y-2">{documents.length === 0 && <p className="text-sm text-slate-500">No knowledge documents added.</p>}{documents.map((document) => <div key={document.id} className="flex items-center gap-3 p-3 bg-black/20 rounded-xl"><div className="flex-1"><p className="text-sm">{document.filename}</p><p className="text-xs text-slate-500">{Math.ceil(document.sizeBytes / 1024)} KB · {document.status}{document.error ? ` · ${document.error}` : ''}</p></div><button aria-label={`Delete ${document.filename}`} onClick={() => removeDocument(document)} className="p-2 text-rose-300"><Trash2 size={16} /></button></div>)}</div>
           </section>
         </main>
